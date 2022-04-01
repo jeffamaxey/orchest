@@ -79,8 +79,6 @@ const createInvalidEntryFilter = ({
 
 type ProgressType = LinearProgressProps["variant"];
 
-const treeRoots: FileManagerRoot[] = ["/project-dir", "/data"];
-
 export function FileManager() {
   /**
    * States

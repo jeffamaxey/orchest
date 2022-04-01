@@ -14,9 +14,7 @@ export const FILE_MANAGEMENT_ENDPOINT = "/async/file-management";
 export const FILE_MANAGER_ROOT_CLASS = "file-manager-root";
 export const ROOT_SEPARATOR = ":";
 
-export type FileManagementRoot = "/project-dir" | "/data";
-
-export const treeRoots: FileManagementRoot[] = ["/project-dir", "/data"];
+export const treeRoots: FileManagerRoot[] = ["/project-dir", "/data"];
 
 export type TreeNode = {
   children: TreeNode[];

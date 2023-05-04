@@ -17,7 +17,4 @@ def register_analytics_views(app, db):
 
         success = analytics.send_event(app, analytics_event, request.json["properties"])
 
-        if success:
-            return ""
-        else:
-            return "", 500
+        return "" if success else ("", 500)

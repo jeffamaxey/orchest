@@ -240,17 +240,16 @@ class CreateInteractiveRun(TwoPhaseFunction):
         # will be run.
         step_uuids = [s.properties["uuid"] for s in pipeline.steps]
 
-        pipeline_steps = []
-        for step_uuid in step_uuids:
-            pipeline_steps.append(
-                models.PipelineRunStep(
-                    **{
-                        "run_uuid": task_id,
-                        "step_uuid": step_uuid,
-                        "status": "PENDING",
-                    }
-                )
+        pipeline_steps = [
+            models.PipelineRunStep(
+                **{
+                    "run_uuid": task_id,
+                    "step_uuid": step_uuid,
+                    "status": "PENDING",
+                }
             )
+            for step_uuid in step_uuids
+        ]
         db.session.bulk_save_objects(pipeline_steps)
         run["pipeline_steps"] = pipeline_steps
 

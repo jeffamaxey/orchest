@@ -65,16 +65,11 @@ def register_views(app):
 
         if token is None:
             return False
-        else:
+        token_creation_limit = datetime.datetime.utcnow() - datetime.timedelta(
+            days=app.config["TOKEN_DURATION_HOURS"]
+        )
 
-            token_creation_limit = datetime.datetime.utcnow() - datetime.timedelta(
-                days=app.config["TOKEN_DURATION_HOURS"]
-            )
-
-            if token.created > token_creation_limit:
-                return True
-            else:
-                return False
+        return token.created > token_creation_limit
 
     def serve_static_or_dev(path):
         file_path = os.path.join(app.config["STATIC_DIR"], path)
@@ -97,18 +92,16 @@ def register_views(app):
     @app.route("/login/admin", methods=["GET"])
     def login_admin():
 
-        if not is_authenticated(request):
-            return "", 401
-
-        return serve_static_or_dev("/admin")
+        return (
+            serve_static_or_dev("/admin")
+            if is_authenticated(request)
+            else ("", 401)
+        )
 
     @app.route("/auth", methods=["GET"])
     def index():
         # validate authentication through token
-        if is_authenticated(request):
-            return "", 200
-        else:
-            return "", 401
+        return ("", 200) if is_authenticated(request) else ("", 401)
 
     @app.route("/login/clear", methods=["GET"])
     def logout():
@@ -138,10 +131,10 @@ def register_views(app):
         request_args = request.args.copy()
         redirect_url = request_args.pop("redirect_url", "/")
         query_args = "&".join(
-            [arg + "=" + value for arg, value in request_args.items()]
+            [f"{arg}={value}" for arg, value in request_args.items()]
         )
         if query_args:
-            redirect_url += "?" + query_args
+            redirect_url += f"?{query_args}"
 
         if is_authenticated(request):
             return redirect_response(redirect_url, redirect_type)
@@ -157,32 +150,31 @@ def register_views(app):
             invalid_login_msg = "Username password combination does not exist."
             if user is None:
                 return jsonify({"error": invalid_login_msg}), 401
+            if password is not None:
+                can_login = check_password_hash(user.password_hash, password)
+            elif token is not None and user.token_hash is not None:
+                can_login = check_password_hash(user.token_hash, token)
             else:
-                if password is not None:
-                    can_login = check_password_hash(user.password_hash, password)
-                elif token is not None and user.token_hash is not None:
-                    can_login = check_password_hash(user.token_hash, token)
-                else:
-                    can_login = False
+                can_login = False
 
-                if can_login:
+            if can_login:
 
-                    # remove old token if it exists
-                    Token.query.filter(Token.user == user.uuid).delete()
+                # remove old token if it exists
+                Token.query.filter(Token.user == user.uuid).delete()
 
-                    token = Token(user=user.uuid, token=str(secrets.token_hex(16)))
+                token = Token(user=user.uuid, token=str(secrets.token_hex(16)))
 
-                    db.session.add(token)
-                    db.session.commit()
+                db.session.add(token)
+                db.session.commit()
 
-                    resp = redirect_response(redirect_url, redirect_type)
-                    resp.set_cookie("auth_token", token.token)
-                    resp.set_cookie("auth_username", username)
+                resp = redirect_response(redirect_url, redirect_type)
+                resp.set_cookie("auth_token", token.token)
+                resp.set_cookie("auth_username", username)
 
-                    return resp
+                return resp
 
-                else:
-                    return jsonify({"error": invalid_login_msg}), 401
+            else:
+                return jsonify({"error": invalid_login_msg}), 401
 
     @app.route("/login/users", methods=["DELETE"])
     def delete_user():
@@ -196,10 +188,9 @@ def register_views(app):
             if user is not None:
                 if user.is_admin:
                     return jsonify({"error": "Admins cannot be deleted."}), 500
-                else:
-                    db.session.delete(user)
-                    db.session.commit()
-                    return ""
+                db.session.delete(user)
+                db.session.commit()
+                return ""
             else:
                 return jsonify({"error": "User does not exist."}), 500
         else:
@@ -273,53 +264,49 @@ def register_views(app):
             session_uuid_prefix = components[-1]
             project_uuid_prefix = components[-2]
         except Exception:
-            app.logger.error("Failed to parse X-Original-URI: %s" % original_uri)
+            app.logger.error(f"Failed to parse X-Original-URI: {original_uri}")
             return "", 401
 
         auth_check = get_auth_cache(
             project_uuid_prefix, session_uuid_prefix, _auth_cache, _auth_cache_age
         )
         if auth_check["status"] == "available":
-            if auth_check["requires_authentication"] is False:
+            return (
+                ("", 200)
+                if auth_check["requires_authentication"] is False
+                else ("", 401)
+            )
+            # No cache available, fetch from orchest-api
+        base_url = f'http://{app.config["ORCHEST_API_ADDRESS"]}/api/services/'
+        service_url = f"{base_url}?project_uuid_prefix={project_uuid_prefix}&session_uuid_prefix={session_uuid_prefix}"
+
+        try:
+            r = requests.get(service_url)
+            services = r.json().get("services", [])
+
+            # No service is found for given filter
+            if len(services) == 0:
+                raise Exception("No services found")
+
+            if len(services) > 1:
+                raise Exception(
+                    "Filtered /api/services endpoint "
+                    "should always return a single service"
+                )
+
+            # Always check first service that is returned,
+            # should be unique
+            if services[0]["service"]["requires_authentication"] is False:
+                set_auth_cache(
+                    project_uuid_prefix, session_uuid_prefix, False, _auth_cache
+                )
                 return "", 200
             else:
-                return "", 401
-        else:
-            # No cache available, fetch from orchest-api
-            base_url = "http://%s/api/services/" % (app.config["ORCHEST_API_ADDRESS"])
-            service_url = "%s?project_uuid_prefix=%s&session_uuid_prefix=%s" % (
-                base_url,
-                project_uuid_prefix,
-                session_uuid_prefix,
-            )
+                set_auth_cache(
+                    project_uuid_prefix, session_uuid_prefix, True, _auth_cache
+                )
+                raise Exception("'requires_authentication' is not set to False")
 
-            try:
-                r = requests.get(service_url)
-                services = r.json().get("services", [])
-
-                # No service is found for given filter
-                if len(services) == 0:
-                    raise Exception("No services found")
-
-                if len(services) > 1:
-                    raise Exception(
-                        "Filtered /api/services endpoint "
-                        "should always return a single service"
-                    )
-
-                # Always check first service that is returned,
-                # should be unique
-                if services[0]["service"]["requires_authentication"] is False:
-                    set_auth_cache(
-                        project_uuid_prefix, session_uuid_prefix, False, _auth_cache
-                    )
-                    return "", 200
-                else:
-                    set_auth_cache(
-                        project_uuid_prefix, session_uuid_prefix, True, _auth_cache
-                    )
-                    raise Exception("'requires_authentication' is not set to False")
-
-            except Exception as e:
-                app.logger.error(e)
-                return "", 401
+        except Exception as e:
+            app.logger.error(e)
+            return "", 401

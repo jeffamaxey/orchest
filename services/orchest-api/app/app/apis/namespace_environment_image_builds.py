@@ -67,12 +67,10 @@ class EnvironmentImageBuildList(Resource):
         # Keep only unique requests.
         post_data = request.get_json()
         builds_requests = post_data["environment_image_build_requests"]
-        builds_requests = set(
-            [
-                (req["project_uuid"], req["environment_uuid"], req["project_path"])
-                for req in builds_requests
-            ]
-        )
+        builds_requests = {
+            (req["project_uuid"], req["environment_uuid"], req["project_path"])
+            for req in builds_requests
+        }
         builds_requests = [
             {
                 "project_uuid": req[0],
@@ -235,13 +233,14 @@ class ProjectEnvironmentMostRecentBuild(Resource):
 
         environment_image_builds = []
 
-        recent = (
+        if recent := (
             db.session.query(models.EnvironmentImageBuild)
-            .filter_by(project_uuid=project_uuid, environment_uuid=environment_uuid)
+            .filter_by(
+                project_uuid=project_uuid, environment_uuid=environment_uuid
+            )
             .order_by(desc(models.EnvironmentImageBuild.requested_time))
             .first()
-        )
-        if recent:
+        ):
             environment_image_builds.append(recent.as_dict())
 
         return {"environment_image_builds": environment_image_builds}

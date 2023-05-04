@@ -222,13 +222,13 @@ class _HandleRecurringSchedulerJob(TwoPhaseFunction):
         else:
             now = datetime.datetime.now(datetime.timezone.utc)
 
-            # Offset in minutes to account for lag in the scheduler
-            # when running jobs. E.g. execution X is slow and execution
-            # X+1 is fast, causing X+1 to not handle the event as the
-            # interval has not yet passed.
-            epsilon = 0.1
-
             if interval > 0:
+                # Offset in minutes to account for lag in the scheduler
+                # when running jobs. E.g. execution X is slow and execution
+                # X+1 is fast, causing X+1 to not handle the event as the
+                # interval has not yet passed.
+                epsilon = 0.1
+
                 # The task would always run and thus also for every
                 # concurrent run. This is not what we want.
                 assert epsilon < interval, "Offset too large."

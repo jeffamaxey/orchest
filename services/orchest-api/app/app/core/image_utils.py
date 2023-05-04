@@ -36,7 +36,7 @@ _registry_pod_affinity = {
 def _get_kaniko_base_image_cache_workflow_manifest(
     workflow_name, base_image: str
 ) -> dict:
-    manifest = {
+    return {
         "apiVersion": "argoproj.io/v1alpha1",
         "kind": "Workflow",
         "metadata": {"name": workflow_name},
@@ -86,7 +86,6 @@ def _get_kaniko_base_image_cache_workflow_manifest(
             ],
         },
     }
-    return manifest
 
 
 def _get_buildkit_image_build_workflow_manifest(
@@ -114,7 +113,7 @@ def _get_buildkit_image_build_workflow_manifest(
     Returns:
         Valid k8s workflow manifest.
     """
-    manifest = {
+    return {
         "apiVersion": "argoproj.io/v1alpha1",
         "kind": "Workflow",
         "metadata": {"name": workflow_name},
@@ -163,7 +162,9 @@ def _get_buildkit_image_build_workflow_manifest(
                             {
                                 "name": "userdir-pvc",
                                 "mountPath": "/build-context",
-                                "subPath": get_userdir_relpath(build_context_host_path),
+                                "subPath": get_userdir_relpath(
+                                    build_context_host_path
+                                ),
                                 "readOnly": True,
                             },
                             {
@@ -211,14 +212,16 @@ def _get_buildkit_image_build_workflow_manifest(
                     "secret": {
                         "secretName": "registry-tls-secret",
                         "items": [
-                            {"key": "ca.crt", "path": "additional-ca-cert-bundle.crt"}
+                            {
+                                "key": "ca.crt",
+                                "path": "additional-ca-cert-bundle.crt",
+                            }
                         ],
                     },
                 },
             ],
         },
     }
-    return manifest
 
 
 def _get_kaniko_image_build_workflow_manifest(
@@ -229,11 +232,8 @@ def _get_kaniko_image_build_workflow_manifest(
     See _get_buildkit_image_build_workflow_manifest for info about the
     args.
     """
-    verbosity = "panic"
-    # K8S_TODO: pass this env variable to the celery_worker.
-    if os.getenv("FLASK_ENV") == "development":
-        verbosity = "info"
-    manifest = {
+    verbosity = "info" if os.getenv("FLASK_ENV") == "development" else "panic"
+    return {
         "apiVersion": "argoproj.io/v1alpha1",
         "kind": "Workflow",
         "metadata": {"name": workflow_name},
@@ -285,7 +285,9 @@ def _get_kaniko_image_build_workflow_manifest(
                             {
                                 "name": "userdir-pvc",
                                 "mountPath": "/build-context",
-                                "subPath": get_userdir_relpath(build_context_host_path),
+                                "subPath": get_userdir_relpath(
+                                    build_context_host_path
+                                ),
                             },
                             {
                                 "name": "image-builder-cache-pvc",
@@ -333,14 +335,16 @@ def _get_kaniko_image_build_workflow_manifest(
                     "secret": {
                         "secretName": "registry-tls-secret",
                         "items": [
-                            {"key": "ca.crt", "path": "additional-ca-cert-bundle.crt"}
+                            {
+                                "key": "ca.crt",
+                                "path": "additional-ca-cert-bundle.crt",
+                            }
                         ],
                     },
                 },
             ],
         },
     }
-    return manifest
 
 
 def _log(user_logs, all_logs, msg, newline=False):
@@ -432,9 +436,7 @@ def _build_image(
         if flags_count == 0:
             continue
 
-        # Remove the runtime from the logs.
-        match = runtime_regex.match(event)
-        if match:
+        if match := runtime_regex.match(event):
             event = event[len(match.group()) :]
         _log(user_logs_file_object, complete_logs_file_object, event, True)
 

@@ -210,13 +210,15 @@ def fuzzy_filter_non_interactive_pipeline_runs(
 
 
 def get_jupyter_server_image_to_use() -> str:
-    has_customized_jupyter = db.session.query(
-        db.session.query(models.JupyterImageBuild).filter_by(status="SUCCESS").exists()
-    ).scalar()
-    if has_customized_jupyter:
-        registry_ip = k8s_core_api.read_namespaced_service(
-            _config.REGISTRY, _config.ORCHEST_NAMESPACE
-        ).spec.cluster_ip
-        return f"{registry_ip}/{_config.JUPYTER_IMAGE_NAME}:latest"
-    else:
+    if not (
+        has_customized_jupyter := db.session.query(
+            db.session.query(models.JupyterImageBuild)
+            .filter_by(status="SUCCESS")
+            .exists()
+        ).scalar()
+    ):
         return f"orchest/jupyter-server:{CONFIG_CLASS.ORCHEST_VERSION}"
+    registry_ip = k8s_core_api.read_namespaced_service(
+        _config.REGISTRY, _config.ORCHEST_NAMESPACE
+    ).spec.cluster_ip
+    return f"{registry_ip}/{_config.JUPYTER_IMAGE_NAME}:latest"

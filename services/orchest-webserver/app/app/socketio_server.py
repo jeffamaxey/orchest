@@ -19,7 +19,7 @@ def register_build_listener(namespace, socketio):
 
     @socketio.on("connect", namespace=namespace)
     def connect_build_logger():
-        current_app.logger.info("socket.io client connected on %s" % namespace)
+        current_app.logger.info(f"socket.io client connected on {namespace}")
 
         with lock:
 
@@ -65,8 +65,7 @@ def register_build_listener(namespace, socketio):
                     del build_buffer[data["identity"]]
                 except KeyError:
                     current_app.logger.error(
-                        "Could not clear buffer for Build with identity %s"
-                        % data["identity"]
+                        f'Could not clear buffer for Build with identity {data["identity"]}'
                     )
 
                 # broadcast streamed task message

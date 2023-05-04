@@ -66,9 +66,7 @@ def file_reader_loop(sio):
                 try:
                     read_emit_all_content(file_handles[session_uuid], sio, session_uuid)
                 except Exception as e:
-                    logging.info(
-                        "call to read_emit_all_content failed %s (%s)" % (e, type(e))
-                    )
+                    logging.info(f"call to read_emit_all_content failed {e} ({type(e)})")
 
         sio.sleep(0.01)
 
@@ -80,7 +78,7 @@ def check_timeout(session_uuid):
             log_file_store[session_uuid].last_heartbeat
             < datetime.now() - HEARTBEAT_TIMEOUT
         ):
-            logging.info("Clearing %s session due to heartbeat timeout." % session_uuid)
+            logging.info(f"Clearing {session_uuid} session due to heartbeat timeout.")
             clear_log_file(session_uuid)
             logging.info(
                 "Removed session_uuid (%s). Sessions active: %d"
@@ -88,19 +86,18 @@ def check_timeout(session_uuid):
             )
     except Exception as exception:
         logging.info(
-            "Failed to check for timeout %s. Error: %s [%s]"
-            % (session_uuid, exception, type(exception))
+            f"Failed to check for timeout {session_uuid}. Error: {exception} [{type(exception)}]"
         )
 
 
 def read_emit_all_content(file, sio, session_uuid):
 
     if session_uuid not in log_file_store:
-        logging.info("session_uuid[%s] not in log_file_store" % session_uuid)
+        logging.info(f"session_uuid[{session_uuid}] not in log_file_store")
         return
 
     if session_uuid not in file_handles:
-        logging.info("session_uuid[%s] not in file_handles" % session_uuid)
+        logging.info(f"session_uuid[{session_uuid}] not in file_handles")
         return
 
     # check if log_uuid is current log_uuid
@@ -109,12 +106,11 @@ def read_emit_all_content(file, sio, session_uuid):
         latest_log_file.seek(0)
         read_log_uuid = latest_log_file.readline().decode("utf-8").strip()
     except IOError as e:
-        logging.info("Could not read latest log file: %s" % e)
+        logging.info(f"Could not read latest log file: {e}")
         return
     except Exception as e:
         logging.error(
-            "Could not read latest_log_file for session_uuid[%s]. Error: %s [%s]."
-            % (session_uuid, e, type(e))
+            f"Could not read latest_log_file for session_uuid[{session_uuid}]. Error: {e} [{type(e)}]."
         )
         return
 
@@ -124,9 +120,7 @@ def read_emit_all_content(file, sio, session_uuid):
     ):  # length of valid uuid
 
         logging.info(
-            "New log_uuid found, resetting pty."
-            + "Debug info: read_log_uuid[%s] stored_log_uuid[%s] session_uuid[%s]."
-            % (read_log_uuid, log_file_store[session_uuid].log_uuid, session_uuid)
+            f"New log_uuid found, resetting pty.Debug info: read_log_uuid[{read_log_uuid}] stored_log_uuid[{log_file_store[session_uuid].log_uuid}] session_uuid[{session_uuid}]."
         )
 
         sio.emit(
@@ -148,8 +142,7 @@ def read_emit_all_content(file, sio, session_uuid):
             latest_log_file.close()
         except IOError as e:
             logging.info(
-                "Failed to close new log file %s for session_uuid %s"
-                % (e, session_uuid)
+                f"Failed to close new log file {e} for session_uuid {session_uuid}"
             )
 
     try:
@@ -166,7 +159,7 @@ def read_emit_all_content(file, sio, session_uuid):
                 namespace="/pty",
             )
     except IOError as e:
-        raise Exception("IOError reading log file %s" % e)
+        raise Exception(f"IOError reading log file {e}")
     except Exception as e:
         raise e
 
@@ -216,7 +209,7 @@ def get_log_path(log_file):
     return os.path.join(
         project_dir,
         _config.LOGS_PATH.format(pipeline_uuid=log_file.pipeline_uuid),
-        "%s.log" % format_input,
+        f"{format_input}.log",
     )
 
 
@@ -225,7 +218,7 @@ def clear_log_file(session_uuid):
     try:
         del log_file_store[session_uuid]
     except Exception:
-        logging.error("Key not in log_file_store: %s" % session_uuid)
+        logging.error(f"Key not in log_file_store: {session_uuid}")
 
 
 def create_file_handle(log_file):
@@ -244,9 +237,7 @@ def create_file_handle(log_file):
         file_handles[log_file.session_uuid] = file
         return True
     except IOError as ioe:
-        logging.error(
-            "Could not open log file for path %s. Error: %s" % (log_path, ioe)
-        )
+        logging.error(f"Could not open log file for path {log_path}. Error: {ioe}")
 
     return False
 
@@ -255,11 +246,10 @@ def close_file_handle(session_uuid):
     try:
         file_handles[session_uuid].close()
     except IOError as exc:
-        logging.debug("Error closing log file %s" % exc)
+        logging.debug(f"Error closing log file {exc}")
     except Exception as e:
         logging.debug(
-            "close_file_handle filed for session_uuid[%s] with error: %s"
-            % (session_uuid, e)
+            f"close_file_handle filed for session_uuid[{session_uuid}] with error: {e}"
         )
 
 
@@ -284,13 +274,11 @@ def main():
 
         with lock:
 
-            logging.info("EVENT on pty-log-manager-receiver: %s" % data)
+            logging.info(f"EVENT on pty-log-manager-receiver: {data}")
 
             if data["action"] == "fetch-logs":
 
-                logging.info(
-                    "SocketIO action fetch-logs session_uuid %s" % data["session_uuid"]
-                )
+                logging.info(f'SocketIO action fetch-logs session_uuid {data["session_uuid"]}')
 
                 kwargs = {
                     "step_uuid": data.get("step_uuid"),
@@ -318,13 +306,10 @@ def main():
                             % (data["session_uuid"], len(log_file_store))
                         )
                     else:
-                        logging.error(
-                            "Adding session_uuid (%s) failed." % data["session_uuid"]
-                        )
+                        logging.error(f'Adding session_uuid ({data["session_uuid"]}) failed.')
                 else:
                     logging.info(
-                        "Tried to add %s to log_file_store but it already exists."
-                        % data["session_uuid"]
+                        f'Tried to add {data["session_uuid"]} to log_file_store but it already exists.'
                     )
 
             elif data["action"] == "stop-logs":
@@ -345,12 +330,11 @@ def main():
 
                 session_uuid = data["session_uuid"]
                 if session_uuid in log_file_store.keys():
-                    logging.info("Received heartbeat for session %s" % session_uuid)
+                    logging.info(f"Received heartbeat for session {session_uuid}")
                     log_file_store[session_uuid].last_heartbeat = datetime.now()
                 else:
                     logging.error(
-                        "Received heartbeat for log_file with "
-                        + "session_uuid %s that isn't registered." % session_uuid
+                        f"Received heartbeat for log_file with session_uuid {session_uuid} that isn't registered."
                     )
 
     # Initialize file reader loop

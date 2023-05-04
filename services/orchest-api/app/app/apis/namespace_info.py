@@ -63,21 +63,19 @@ def is_orchest_idle() -> dict:
     Returns:
         See schema.idleness_check_result for details.
     """
-    data = {}
-
     # Active clients.
     threshold = (
         datetime.now(timezone.utc)
         - current_app.config["CLIENT_HEARTBEATS_IDLENESS_THRESHOLD"]
     )
-    data["active_clients"] = db.session.query(
-        db.session.query(models.ClientHeartbeat)
-        .filter(models.ClientHeartbeat.timestamp > threshold)
-        .exists()
-    ).scalar()
-
-    # Find busy kernels.
-    data["busy_kernels"] = False
+    data = {
+        "active_clients": db.session.query(
+            db.session.query(models.ClientHeartbeat)
+            .filter(models.ClientHeartbeat.timestamp > threshold)
+            .exists()
+        ).scalar(),
+        "busy_kernels": False,
+    }
     isessions = models.InteractiveSession.query.filter(
         models.InteractiveSession.status.in_(["RUNNING"])
     ).all()
@@ -106,6 +104,4 @@ def is_orchest_idle() -> dict:
             .exists()
         ).scalar()
 
-    result = {"details": data}
-    result["idle"] = not any(data.values())
-    return result
+    return {"details": data, "idle": not any(data.values())}

@@ -50,7 +50,7 @@ class LatestEnvironmentImage(Resource):
             models.EnvironmentImage.project_uuid,
             models.EnvironmentImage.environment_uuid,
         )
-        latest_env_images = [a for a in latest_env_images]
+        latest_env_images = list(latest_env_images)
         return {"environment_images": latest_env_images}, 200
 
 
@@ -68,18 +68,12 @@ class EnvironmentImagesToPrePull(Resource):
             models.EnvironmentImage.project_uuid,
             models.EnvironmentImage.environment_uuid,
         )
-        images_to_pre_pull = []
         registry_ip = k8s_core_api.read_namespaced_service(
             _config.REGISTRY, _config.ORCHEST_NAMESPACE
         ).spec.cluster_ip
+        images_to_pre_pull = []
         for img in latest_env_images:
-            image = (
-                _config.ENVIRONMENT_IMAGE_NAME.format(
-                    project_uuid=img.project_uuid, environment_uuid=img.environment_uuid
-                )
-                + ":"
-                + str(img.tag)
-            )
+            image = f"{_config.ENVIRONMENT_IMAGE_NAME.format(project_uuid=img.project_uuid, environment_uuid=img.environment_uuid)}:{str(img.tag)}"
             images_to_pre_pull.append(f"{registry_ip}/{image}")
 
         return {"pre_pull_images": images_to_pre_pull}, 200

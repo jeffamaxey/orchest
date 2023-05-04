@@ -153,21 +153,19 @@ def get_environments(project_uuid, language=None):
                 # read_environment_from_disk is not guaranteed to
                 # succeed on failure it returns None, and logs the error
                 # .
-                if env is not None:
-                    if language is None:
-                        environments.append(env)
-                    else:
-                        if language == env.language:
-                            environments.append(env)
-                else:
+                if env is None:
                     current_app.logger.info(
-                        "Could not read environment for env dir %s and project_uuid %s"
-                        % (environment_dir, project_uuid)
+                        f"Could not read environment for env dir {environment_dir} and project_uuid {project_uuid}"
                     )
+                elif (
+                    language is not None
+                    and language == env.language
+                    or language is None
+                ):
+                    environments.append(env)
     except FileNotFoundError:
         current_app.logger.error(
-            "Could not find environments directory in project path %s"
-            % environments_dir
+            f"Could not find environments directory in project path {environments_dir}"
         )
     except Exception as e:
         current_app.logger.error(e)
@@ -227,8 +225,7 @@ def read_environment_from_disk(env_directory, project_uuid) -> Optional[Environm
         return e
     except Exception as e:
         current_app.logger.error(
-            "Could not get environment from env_directory %s. Error: %s"
-            % (env_directory, e)
+            f"Could not get environment from env_directory {env_directory}. Error: {e}"
         )
 
 
@@ -270,12 +267,10 @@ def populate_default_environments(project_uuid):
 
 
 def get_environments_from_pipeline_json(pipeline_definition):
-    environment_uuids = set()
-
-    for _, step in enumerate(pipeline_definition["steps"]):
-        environment_uuids.add(pipeline_definition["steps"].get(step).get("environment"))
-
-    return environment_uuids
+    return {
+        pipeline_definition["steps"].get(step).get("environment")
+        for step in pipeline_definition["steps"]
+    }
 
 
 def get_pipeline_json(pipeline_uuid, project_uuid):
@@ -290,7 +285,7 @@ def get_pipeline_json(pipeline_uuid, project_uuid):
 
             return pipeline_json
     except Exception as e:
-        current_app.logger.error("Could not read pipeline JSON from %s" % e)
+        current_app.logger.error(f"Could not read pipeline JSON from {e}")
 
 
 def get_hash(path):
@@ -319,11 +314,9 @@ def clear_folder(folder):
                 elif os.path.isdir(file_path):
                     rmtree(file_path)
             except Exception as e:
-                current_app.logger.error(
-                    "Failed to delete %s. Reason: %s" % (file_path, e)
-                )
+                current_app.logger.error(f"Failed to delete {file_path}. Reason: {e}")
     except FileNotFoundError as e:
-        current_app.logger.error("Failed to delete %s. Reason: %s" % (folder, e))
+        current_app.logger.error(f"Failed to delete {folder}. Reason: {e}")
 
 
 def remove_dir_if_empty(path):
@@ -338,10 +331,7 @@ def pipeline_uuid_to_path(pipeline_uuid, project_uuid, job_uuid=None):
             .filter(Pipeline.project_uuid == project_uuid)
             .first()
         )
-        if pipeline is not None:
-            return pipeline.path
-        else:
-            return None
+        return pipeline.path if pipeline is not None else None
     else:
         resp = requests.get(
             f'http://{current_app.config["ORCHEST_API_ADDRESS"]}/api/jobs/{job_uuid}',
@@ -361,11 +351,11 @@ def pipeline_uuid_to_path(pipeline_uuid, project_uuid, job_uuid=None):
 
 def project_entity_counts(project_uuid, get_job_count=False, get_session_count=False):
 
-    counts = {}
-
-    counts["pipeline_count"] = Pipeline.query.filter(
-        Pipeline.project_uuid == project_uuid
-    ).count()
+    counts = {
+        "pipeline_count": Pipeline.query.filter(
+            Pipeline.project_uuid == project_uuid
+        ).count()
+    }
 
     counts["environment_count"] = len(get_environments(project_uuid))
 
@@ -417,10 +407,7 @@ def get_api_entity_counts(endpoint, entity_key, project_uuid=None):
 
 def project_uuid_to_path(project_uuid: str) -> Optional[str]:
     project = Project.query.filter(Project.uuid == project_uuid).first()
-    if project is not None:
-        return project.path
-    else:
-        return None
+    return project.path if project is not None else None
 
 
 def find_pipelines_in_dir(path, relative_to=None):
@@ -456,13 +443,13 @@ def write_config(app, key, value):
         conf_json_path = "/config/config.json"
 
         if not os.path.isfile(conf_json_path):
-            os.system("touch " + conf_json_path)
+            os.system(f"touch {conf_json_path}")
 
         with open(conf_json_path, "r") as f:
             try:
                 conf_data = json.load(f)
             except Exception as e:
-                print("JSON read error: %s" % e)
+                print(f"JSON read error: {e}")
                 conf_data = {}
 
             conf_data[key] = value
@@ -477,7 +464,7 @@ def write_config(app, key, value):
         current_app.logger.debug(e)
 
     # always set rw permissions on file
-    os.system("chmod o+rw " + conf_json_path)
+    os.system(f"chmod o+rw {conf_json_path}")
 
 
 def create_job_directory(job_uuid, pipeline_uuid, project_uuid):
@@ -547,15 +534,15 @@ def get_ipynb_template(language: str):
     if language not in language_to_template.keys():
         language = "python"
 
-    template_json = json.load(
+    return json.load(
         open(
             os.path.join(
-                current_app.config["RESOURCE_DIR"], language_to_template[language]
+                current_app.config["RESOURCE_DIR"],
+                language_to_template[language],
             ),
             "r",
         )
     )
-    return template_json
 
 
 def generate_ipynb_from_template(kernel_name: str):
@@ -584,7 +571,7 @@ def create_empty_file(file_path: str, kernel_name: Optional[str] = "python"):
 
     if not os.path.isfile(file_path):
 
-        if len(file_path_without_ext) > 0:
+        if file_path_without_ext != "":
             file_content = ""
 
         if ext == "ipynb":
@@ -604,7 +591,7 @@ def create_empty_file(file_path: str, kernel_name: Optional[str] = "python"):
 def request_args_to_string(args):
     if args is None or len(args) == 0:
         return ""
-    return "?" + "&".join([key + "=" + value for key, value in args.items()])
+    return "?" + "&".join([f"{key}={value}" for key, value in args.items()])
 
 
 def generate_gateway_kernel_name(environment_uuid):
@@ -627,7 +614,7 @@ def pipeline_set_notebook_kernels(pipeline_json, pipeline_directory, project_uui
     for key in steps:
         step = pipeline_json["steps"][key]
 
-        if "ipynb" == step["file_path"].split(".")[-1]:
+        if step["file_path"].split(".")[-1] == "ipynb":
 
             notebook_path = os.path.join(pipeline_directory, step["file_path"])
 
@@ -636,10 +623,9 @@ def pipeline_set_notebook_kernels(pipeline_json, pipeline_directory, project_uui
                 with open(notebook_path, "r") as file:
                     notebook_json = json.load(file)
 
-                notebook_changed = False
-
                 # Set language info and kernelspec.language metadata.
                 language = step["kernel"]["name"]
+                notebook_changed = False
                 if notebook_json["metadata"]["kernelspec"]["language"] != language:
                     notebook_changed = True
                     notebook_json["metadata"]["kernelspec"]["language"] = language
@@ -665,26 +651,21 @@ def pipeline_set_notebook_kernels(pipeline_json, pipeline_directory, project_uui
                         notebook_json["metadata"]["kernelspec"]["name"] = gateway_kernel
 
                     environment = get_environment(step["environment"], project_uuid)
-                    if environment is not None:
-                        if (
-                            notebook_json["metadata"]["kernelspec"]["display_name"]
-                            != environment.name
-                        ):
-                            notebook_changed = True
-                            notebook_json["metadata"]["kernelspec"][
-                                "display_name"
-                            ] = environment.name
-                    else:
+                    if environment is None:
                         notebook_changed = True
                         notebook_json["metadata"]["kernelspec"]["display_name"] = ""
                         current_app.logger.warn(
-                            (
-                                "Could not find environment [%s] while setting"
-                                "notebook kernelspec for notebook %s."
-                            )
-                            % (step["environment"], notebook_path)
+                            f'Could not find environment [{step["environment"]}] while settingnotebook kernelspec for notebook {notebook_path}.'
                         )
 
+                    elif (
+                            notebook_json["metadata"]["kernelspec"]["display_name"]
+                            != environment.name
+                        ):
+                        notebook_changed = True
+                        notebook_json["metadata"]["kernelspec"][
+                            "display_name"
+                        ] = environment.name
                 if notebook_changed:
                     with open(notebook_path, "w") as f:
                         json.dump(notebook_json, f, indent=4)

@@ -36,9 +36,11 @@ def get_services_to_follow() -> List[str]:
     services_to_follow = []
     with open(Config.PIPELINE_FILE_PATH) as pipeline:
         data = json.load(pipeline)
-        for service in data.get("services", {}).values():
-            if Config.SESSION_TYPE in service.get("scope", []):
-                services_to_follow.append(service["name"])
+        services_to_follow.extend(
+            service["name"]
+            for service in data.get("services", {}).values()
+            if Config.SESSION_TYPE in service.get("scope", [])
+        )
     return services_to_follow
 
 

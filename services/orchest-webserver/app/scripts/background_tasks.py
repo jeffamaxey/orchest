@@ -25,10 +25,7 @@ def git_clone_project(args):
         # if the project_name is not provided
         git_command = f"git clone {args.url}"
 
-        # args.path contains the desired project name,
-        # if the user specified it
-        project_name = args.path
-        if project_name:
+        if project_name := args.path:
             if "/" in project_name:
                 msg = "project name contains illegal character"
                 raise Exception(msg)
@@ -56,17 +53,12 @@ def git_clone_project(args):
             # on projects directory.
             projects_gid = os.stat("/userdir/projects").st_gid
             os.system(
-                'chown -R :%s "%s"'
-                % (
-                    projects_gid,
-                    os.path.join("/userdir/projects", inferred_project_name),
-                )
+                f'chown -R :{projects_gid} "{os.path.join("/userdir/projects", inferred_project_name)}"'
             )
 
     except Exception as e:
         msg = str(e)
         exit_code = 1
-    # cleanup the tmp directory in any case
     finally:
         os.system(f'rm -rf "{tmp_path}"')
 

@@ -67,7 +67,7 @@ def test_joblist_post(
         or cron_schedule == "invalid string"
         or scheduled_start == "invalid string"
     )
-    expected_code = 201 if not expect_error else 500
+    expected_code = 500 if expect_error else 201
 
     assert resp.status_code == expected_code
 
@@ -119,7 +119,7 @@ def test_job_get_exist(client, pipeline):
 
     resp = client.get(f"/api/jobs/{job_uuid}")
     assert resp.status_code == 200
-    expected_env_vars = {**proj_env_variables, **pipe_env_variables}
+    expected_env_vars = proj_env_variables | pipe_env_variables
     assert resp.get_json()["env_variables"] == expected_env_vars
 
 
@@ -171,7 +171,7 @@ def test_job_put_on_draft(
         or cron_schedule == "invalid string"
         or next_scheduled_time == "invalid string"
     )
-    expected_code = 200 if not expect_error else 500
+    expected_code = 500 if expect_error else 200
 
     assert resp.status_code == expected_code
 
@@ -486,7 +486,7 @@ def test_pipelinerundeletion_one_run(
         "job_uuid": job_uuid,
         "pipeline_run_uuids": [pipeline_runs[0]["uuid"]],
     }
-    assert any([task[1]["kwargs"] == celery_task_kwargs for task in celery.tasks])
+    assert any(task[1]["kwargs"] == celery_task_kwargs for task in celery.tasks)
 
     pipeline_runs = client.get(f"/api/jobs/{job_uuid}/pipeline_runs").get_json()[
         "pipeline_runs"
@@ -530,7 +530,7 @@ def test_pipelinerundeletion_all_runs(
             "job_uuid": job_uuid,
             "pipeline_run_uuids": [run["uuid"]],
         }
-    assert any([task[1]["kwargs"] == celery_task_kwargs for task in celery.tasks])
+    assert any(task[1]["kwargs"] == celery_task_kwargs for task in celery.tasks)
 
     pipeline_runs = client.get(f"/api/jobs/{job_uuid}/pipeline_runs").get_json()[
         "pipeline_runs"
@@ -587,10 +587,8 @@ def test_delete_non_retained_job_pipeline_runs_on_job_run_retain_all(
     ]
     assert len(pipeline_runs) == 6
     assert all(
-        [
-            task[1]["name"] != "app.core.tasks.delete_job_pipeline_run_directories"
-            for task in celery.tasks
-        ]
+        task[1]["name"] != "app.core.tasks.delete_job_pipeline_run_directories"
+        for task in celery.tasks
     )
 
 
@@ -653,17 +651,16 @@ def test_delete_non_retained_job_pipeline_runs_on_job_run_retain_n(
     expected_deleted_runs_n = max(0, min(3, 6 - max_retained_pipeline_runs))
     assert len(pipeline_runs) == 6 - expected_deleted_runs_n
     first_pipeline_runs.sort(key=lambda x: x["pipeline_run_index"])
-    expected_deleted_run_uuids = set(
-        [run["uuid"] for run in first_pipeline_runs[:expected_deleted_runs_n]]
-    )
-    deleted_run_uuids = set(
-        [
-            uuid
-            for task in celery.tasks
-            if task[1]["name"] == "app.core.tasks.delete_job_pipeline_run_directories"
-            for uuid in task[1]["kwargs"]["pipeline_run_uuids"]
-        ]
-    )
+    expected_deleted_run_uuids = {
+        run["uuid"] for run in first_pipeline_runs[:expected_deleted_runs_n]
+    }
+    deleted_run_uuids = {
+        uuid
+        for task in celery.tasks
+        if task[1]["name"]
+        == "app.core.tasks.delete_job_pipeline_run_directories"
+        for uuid in task[1]["kwargs"]["pipeline_run_uuids"]
+    }
     assert expected_deleted_run_uuids == deleted_run_uuids
 
 
@@ -702,10 +699,8 @@ def test_delete_non_retained_job_pipeline_runs_on_job_run_update_retain_all(
     for run in pipeline_runs:
         assert run["status"] == "SUCCESS"
     assert all(
-        [
-            task[1]["name"] != "app.core.tasks.delete_job_pipeline_run_directories"
-            for task in celery.tasks
-        ]
+        task[1]["name"] != "app.core.tasks.delete_job_pipeline_run_directories"
+        for task in celery.tasks
     )
 
 
@@ -755,15 +750,14 @@ def test_delete_non_retained_job_pipeline_runs_on_job_run_update_retain_n(
     expected_deleted_runs_n = max(0, 3 - max_retained_pipeline_runs)
 
     pipeline_runs.sort(key=lambda x: x["pipeline_run_index"])
-    expected_deleted_run_uuids = set(
-        [run["uuid"] for run in pipeline_runs[:expected_deleted_runs_n]]
-    )
-    deleted_run_uuids = set(
-        [
-            uuid
-            for task in celery.tasks
-            if task[1]["name"] == "app.core.tasks.delete_job_pipeline_run_directories"
-            for uuid in task[1]["kwargs"]["pipeline_run_uuids"]
-        ]
-    )
+    expected_deleted_run_uuids = {
+        run["uuid"] for run in pipeline_runs[:expected_deleted_runs_n]
+    }
+    deleted_run_uuids = {
+        uuid
+        for task in celery.tasks
+        if task[1]["name"]
+        == "app.core.tasks.delete_job_pipeline_run_directories"
+        for uuid in task[1]["kwargs"]["pipeline_run_uuids"]
+    }
     assert expected_deleted_run_uuids == deleted_run_uuids

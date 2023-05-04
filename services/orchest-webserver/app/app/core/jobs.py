@@ -50,9 +50,9 @@ def create_job_spec(config) -> dict:
     # Validate whether the pipeline contains environments
     # that do not exist in the project.
     project_environments = get_environments(job_spec["project_uuid"])
-    project_environment_uuids = set(
-        [environment.uuid for environment in project_environments]
-    )
+    project_environment_uuids = {
+        environment.uuid for environment in project_environments
+    }
     pipeline_environment_uuids = get_environments_from_pipeline_json(
         job_spec["pipeline_definition"]
     )
@@ -113,15 +113,15 @@ def duplicate_job_spec(job_uuid: str) -> dict:
         raise error.JobDoesNotExist()
 
     parent_job = resp.json()
-    job_spec = {}
-    job_spec["draft"] = True
-    job_spec["name"] = "Duplicate of " + parent_job["name"]
-    job_spec["cron_schedule"] = parent_job["schedule"]
-    job_spec["project_uuid"] = parent_job["project_uuid"]
-    job_spec["pipeline_uuid"] = parent_job["pipeline_uuid"]
-    job_spec["pipeline_name"] = parent_job["pipeline_name"]
-    job_spec["pipeline_run_spec"] = {"run_type": "full", "uuids": []}
-
+    job_spec = {
+        "draft": True,
+        "name": "Duplicate of " + parent_job["name"],
+        "cron_schedule": parent_job["schedule"],
+        "project_uuid": parent_job["project_uuid"],
+        "pipeline_uuid": parent_job["pipeline_uuid"],
+        "pipeline_name": parent_job["pipeline_name"],
+        "pipeline_run_spec": {"run_type": "full", "uuids": []},
+    }
     if (
         Project.query.filter_by(
             uuid=job_spec["project_uuid"],
@@ -239,10 +239,11 @@ def duplicate_job_spec(job_uuid: str) -> dict:
     if new_pipeline_parameters:
         # In case there were no pipeline parameters before.
         if _config.PIPELINE_PARAMETERS_RESERVED_KEY not in new_st_json:
-            d = dict()
-            d["title"] = job_spec["pipeline_name"]
-            d["key"] = _config.PIPELINE_PARAMETERS_RESERVED_KEY
-            d["parameters"] = {}
+            d = {
+                "title": job_spec["pipeline_name"],
+                "key": _config.PIPELINE_PARAMETERS_RESERVED_KEY,
+                "parameters": {},
+            }
             new_st_json[_config.PIPELINE_PARAMETERS_RESERVED_KEY] = d
         # Expected format for the strategy json.
         for k, v in new_pipeline_parameters.items():
@@ -261,7 +262,7 @@ def duplicate_job_spec(job_uuid: str) -> dict:
     # Add new steps parameters.
     for step_with_new_params, new_step_params in new_steps_parameters.items():
         if step_with_new_params not in new_st_json:
-            d = dict()
+            d = {}
             d["title"] = latest_pipeline_def["steps"][step_with_new_params]["title"]
             d["key"] = step_with_new_params
             d["parameters"] = {}

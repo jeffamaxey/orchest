@@ -39,8 +39,7 @@ def get_command_line_args():
         help="file containing pipeline definition",
     )
 
-    args = parser.parse_args()
-    return args
+    return parser.parse_args()
 
 
 @contextlib.contextmanager

@@ -6,10 +6,7 @@ from runner.runners import NotebookRunner, ProcessRunner
 
 
 def get_filename_extension(filename):
-    if "." in filename:
-        return filename.split(".")[-1].lower()
-    else:
-        return ""
+    return filename.split(".")[-1].lower() if "." in filename else ""
 
 
 def main():
@@ -42,7 +39,7 @@ def main():
 
     # check if file exists in working directory
     if not os.path.isfile(file_path):
-        raise Exception("File doesn't appear to exist in file path '%s'" % (file_path,))
+        raise Exception(f"File doesn't appear to exist in file path '{file_path}'")
 
     if file_extension == "ipynb":
 
@@ -76,8 +73,7 @@ def main():
 
     else:
         raise Exception(
-            "Running files with '%s' extension is not yet supported."
-            % (file_extension,)
+            f"Running files with '{file_extension}' extension is not yet supported."
         )
 
 

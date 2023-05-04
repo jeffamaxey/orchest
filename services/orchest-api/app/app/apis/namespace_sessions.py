@@ -130,10 +130,11 @@ class Session(Resource):
         except Exception as e:
             return {"message": str(e)}, 500
 
-        if not could_restart:
-            return {"message": "SessionNotRunning"}, 500
-
-        return {"message": "Session restart was successful."}, 200
+        return (
+            ({"message": "Session restart was successful."}, 200)
+            if could_restart
+            else ({"message": "SessionNotRunning"}, 500)
+        )
 
 
 class CreateInteractiveSession(TwoPhaseFunction):

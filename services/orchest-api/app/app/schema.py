@@ -29,7 +29,7 @@ def _session_base_url(s) -> str:
     if isinstance(s, dict):
         return "/jupyter-server-" + s["project_uuid"][:18] + s["pipeline_uuid"][:18]
     else:
-        return "/jupyter-server-" + s.project_uuid[:18] + s.pipeline_uuid[:18]
+        return f"/jupyter-server-{s.project_uuid[:18]}{s.pipeline_uuid[:18]}"
 
 
 project = Model(

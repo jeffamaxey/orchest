@@ -42,15 +42,13 @@ def sidecar():
     # Allow the server the time to come online.
     time.sleep(0.5)
 
-    settings = {
+    yield {
         "host": "localhost",
         "port": port,
         "pipeline_uuid": pipeline_uuid,
         "logs_path": logs_path,
         "project_dir": project_dir,
     }
-    yield settings
-
     if proc.poll() is None:
         proc.kill()
 

@@ -15,9 +15,7 @@ def _parse_string_memory_size(memory_size: Union[str, int]) -> int:
 
     conversion = {"KB": 1000, "MB": 1000 ** 2, "GB": 1000 ** 3}
     size, unit = memory_size[:-2], memory_size[-2:]
-    size = int(float(size) * conversion[unit])
-
-    return size
+    return int(float(size) * conversion[unit])
 
 
 def get_store_memory_size(pipeline_definition_path: str):

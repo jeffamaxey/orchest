@@ -49,7 +49,7 @@ def test_runlist_post_success_env_vars(client, celery, pipeline):
         json=create_pipeline_run_spec(pipeline.project.uuid, pipeline.uuid),
     )
     env_vars = celery.tasks[0][1]["kwargs"]["run_config"]["user_env_variables"]
-    assert env_vars == {**proj_env_vars, **pipe_env_vars}
+    assert env_vars == proj_env_vars | pipe_env_vars
 
 
 def test_runlist_post_revert(client, celery, pipeline, monkeypatch):

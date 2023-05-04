@@ -9,14 +9,13 @@ def register_background_tasks_view(app, db):
     background_task_schema = BackgroundTaskSchema()
     api = Api(app)
 
+
+
     class BackgroundTaskResource(Resource):
         def get(self, task_uuid):
             task = BackgroundTask.query.filter(BackgroundTask.uuid == task_uuid).first()
 
-            if task is None:
-                return "", 404
-
-            return background_task_schema.dump(task)
+            return ("", 404) if task is None else background_task_schema.dump(task)
 
         def put(self, task_uuid):
 
@@ -34,6 +33,7 @@ def register_background_tasks_view(app, db):
                 return {"message": "Failed update operation."}, 500
 
             return background_task_schema.dump(task)
+
 
     api.add_resource(
         BackgroundTaskResource, "/async/background-tasks/<string:task_uuid>"

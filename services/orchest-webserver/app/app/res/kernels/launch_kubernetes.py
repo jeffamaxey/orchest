@@ -52,7 +52,7 @@ def _env_image_name_to_project_environment_uuid(image_name: str) -> Tuple[str, s
 
 def _get_user_env_vars(proj_uuid: str, pipe_uuid: str) -> dict:
     project_resp = requests.get(
-        "http://" + _config.ORCHEST_API_ADDRESS + f"/api/projects/{proj_uuid}"
+        f"http://{_config.ORCHEST_API_ADDRESS}" + f"/api/projects/{proj_uuid}"
     )
     pipeline_resp = requests.get(
         "http://"
@@ -77,8 +77,7 @@ def _get_kernel_pod_manifest(
         )
     proj_uuid, env_uuid = _env_image_name_to_project_environment_uuid(image_name)
     resp = requests.get(
-        "http://"
-        + _config.ORCHEST_API_ADDRESS
+        f"http://{_config.ORCHEST_API_ADDRESS}"
         + f"/api/environment-images/latest/{proj_uuid}/{env_uuid}"
     )
     if resp.status_code != 200:
@@ -111,12 +110,10 @@ def _get_kernel_pod_manifest(
         container_pipeline_file=_config.PIPELINE_FILE,
     )
 
-    environment = dict()
-    environment["EG_RESPONSE_ADDRESS"] = response_addr
-    environment["KERNEL_SPARK_CONTEXT_INIT_MODE"] = spark_context_init_mode
-    # Since the environment is specific to the kernel (per env stanza of
-    # kernelspec, KERNEL_ and ENV_WHITELIST) just add the env here.
-    environment.update(os.environ)
+    environment = {
+        "EG_RESPONSE_ADDRESS": response_addr,
+        "KERNEL_SPARK_CONTEXT_INIT_MODE": spark_context_init_mode,
+    } | os.environ
     try:
         user_env_vars = _get_user_env_vars(
             os.environ["ORCHEST_PROJECT_UUID"],
@@ -128,7 +125,7 @@ def _get_kernel_pod_manifest(
         # NOTE: This update needs to happen after adding `os.environ`.
         # Otherwise old env var values (that are present in the
         # environment of the EG) will overwrite updated values.
-        environment.update(user_env_vars)
+        environment |= user_env_vars
     # Let the image PATH be used. Since this is relative to images,
     # we're probably safe.
     environment.pop("PATH")

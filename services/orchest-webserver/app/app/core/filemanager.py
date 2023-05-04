@@ -61,11 +61,7 @@ def find_unique_duplicate_filepath(fp):
     else:
         basename = os.path.basename(fp)
         _, ext = os.path.splitext(fp)
-        if len(ext) > 0:
-            base_no_ext = basename[: -len(ext)]
-        else:
-            base_no_ext = basename
-
+        base_no_ext = basename[: -len(ext)] if len(ext) > 0 else basename
     # Try to find existing counter ending
     regex = r".*? \((\d+)\)$"
     matches = re.finditer(regex, base_no_ext)
@@ -85,19 +81,18 @@ def find_unique_duplicate_filepath(fp):
             new_path_fs.format(base=base_no_ext, counter=counter, ext=ext),
         )
 
-        if os.path.isfile(new_path) or os.path.isdir(new_path):
-            counter += 1
-            continue
-        else:
+        if not os.path.isfile(new_path) and not os.path.isdir(new_path):
             return new_path
+        counter += 1
+        continue
 
 
 def generate_abs_path(path, root, dir, is_dir=False):
     """
     This generates a new absolute path, relative from the `dir`
     """
-    return (
-        "/" + os.path.relpath(os.path.join(root, path), dir) + ("/" if is_dir else "")
+    return f"/{os.path.relpath(os.path.join(root, path), dir)}" + (
+        "/" if is_dir else ""
     )
 
 
@@ -135,15 +130,12 @@ def generate_tree(
     else:
         tree["depth"] = path_filter.count(os.sep) - 1
 
-    dir_nodes = {}
-
     if path_filter != "/":
         filtered_path = os.path.join(dir, path_filter[1:-1])
     else:
         filtered_path = dir
 
-    dir_nodes[filtered_path] = tree
-
+    dir_nodes = {filtered_path: tree}
     dir_depth = dir.count(os.sep)
 
     logger.debug(f"Walking {filtered_path}")
@@ -176,7 +168,7 @@ def generate_tree(
         for filename in files:
 
             if (
-                len(allowed_file_extensions) == 0
+                not allowed_file_extensions
                 or filename.split(".")[-1] in allowed_file_extensions
             ):
                 file_node = {
@@ -189,10 +181,7 @@ def generate_tree(
                 try:
                     dir_nodes[root]["children"].append(file_node)
                 except KeyError as e:
-                    logger.error(
-                        "Key %s does not exist in dir_nodes %s. Error: %s"
-                        % (root, dir_nodes, e)
-                    )
+                    logger.error(f"Key {root} does not exist in dir_nodes {dir_nodes}. Error: {e}")
                 except Exception as e:
                     logger.error("Error: %e" % e)
 
@@ -230,11 +219,10 @@ def process_request(
         extra_explanation = "" if is_path_required else " if depth is None"
         raise ValueError(f"Argument path is required{extra_explanation}.")
 
-    if path is not None:
-        if not path.startswith("/"):
-            raise ValueError(
-                "Argument path should always start with a forward-slash: '/'"
-            )
+    if path is not None and not path.startswith("/"):
+        raise ValueError(
+            "Argument path should always start with a forward-slash: '/'"
+        )
 
     root_dir_path = _construct_root_dir_path(root=root, project_uuid=project_uuid)
 

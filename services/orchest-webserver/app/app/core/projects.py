@@ -315,15 +315,14 @@ class SyncProjectPipelinesDBState(TwoPhaseFunction):
         # Find all pipelines in the project directory.
         pipeline_paths = find_pipelines_in_dir(project_dir, project_dir)
         # Cleanup pipelines that have been manually removed.
-        fs_removed_pipelines = [
-            pipeline
-            for pipeline in Pipeline.query.filter(Pipeline.path.notin_(pipeline_paths))
+        fs_removed_pipelines = list(
+            Pipeline.query.filter(Pipeline.path.notin_(pipeline_paths))
             .filter(
                 Pipeline.project_uuid == project_uuid,
                 Pipeline.status == "READY",
             )
             .all()
-        ]
+        )
         for pip in fs_removed_pipelines:
             DeletePipeline(self.tpe).transaction(
                 pip.project_uuid, pip.uuid, remove_file=False
@@ -390,9 +389,7 @@ class ImportGitProject(TwoPhaseFunction):
         ]
 
         if project_name:
-            args.append("--path")
-            args.append(str(project_name))
-
+            args.extend(("--path", project_name))
         subprocess.Popen(
             args, cwd=os.path.join(file_dir, "../.."), stderr=subprocess.STDOUT
         )

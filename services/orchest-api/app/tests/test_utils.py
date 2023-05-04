@@ -16,6 +16,9 @@ def mocked_abortable_async_result(abort):
 
 
 def mocked_docker_client(_NOT_TO_BE_LOGGED, build_events):
+
+
+
     class MockDockerClient:
         def __init__(self):
             # A way to mock this kind of properties:
@@ -46,10 +49,7 @@ def mocked_docker_client(_NOT_TO_BE_LOGGED, build_events):
 
             data = []
             for event in events:
-                if event is None:
-                    event = {"error": "error"}
-                else:
-                    event = {"stream": event + "\n"}
+                event = {"error": "error"} if event is None else {"stream": event + "\n"}
                 data.append(json.dumps(event))
 
             # This way tasks can be aborted, otherwise it might be done
@@ -57,6 +57,7 @@ def mocked_docker_client(_NOT_TO_BE_LOGGED, build_events):
             # to check if it has been aborted.
             time.sleep(0.5)
             return iter(data)
+
 
     return MockDockerClient
 
@@ -161,7 +162,7 @@ def create_job_spec(
     if pipeline_run_spec is None:
         pipeline_run_spec = create_pipeline_run_spec(project_uuid, pipeline_uuid)
 
-    job_spec = {
+    return {
         "uuid": gen_uuid(),
         "name": "job-name",
         "project_uuid": project_uuid,
@@ -175,7 +176,6 @@ def create_job_spec(
         "strategy_json": {},
         "max_retained_pipeline_runs": max_retained_pipeline_runs,
     }
-    return job_spec
 
 
 class Project:

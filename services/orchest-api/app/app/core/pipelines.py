@@ -241,15 +241,13 @@ class Pipeline:
             services making use of orchest environments.
 
         """
-        st_envs = set([step.properties["environment"] for step in self.steps])
+        st_envs = {step.properties["environment"] for step in self.steps}
         prefix = _config.ENVIRONMENT_AS_SERVICE_PREFIX
-        sr_envs = set(
-            [
-                sr["image"].replace(prefix, "")
-                for sr in self.properties.get("services", {}).values()
-                if sr["image"].startswith(prefix)
-            ]
-        )
+        sr_envs = {
+            sr["image"].replace(prefix, "")
+            for sr in self.properties.get("services", {}).values()
+            if sr["image"].startswith(prefix)
+        }
 
         return set.union(st_envs, sr_envs)
 
@@ -377,10 +375,10 @@ class Pipeline:
         # new pipeline.
         if inclusive:
             steps_to_be_included = steps
-        elif not inclusive:
-            steps_to_be_included = steps - set(
+        else:
+            steps_to_be_included = steps - {
                 step for step in self.steps if step.properties["uuid"] in selection
-            )
+            }
 
             # We have to go over the children again to make sure they
             # also do not include any steps of the selection.
@@ -458,11 +456,11 @@ def _step_to_workflow_manifest_task(
     registry_ip = k8s_core_api.read_namespaced_service(
         _config.REGISTRY, _config.ORCHEST_NAMESPACE
     ).spec.cluster_ip
-    task = {
-        # "Name cannot begin with a digit when using either 'depends' or
-        # 'dependencies'".
+    return {
         "name": f'step-{step.properties["uuid"]}',
-        "dependencies": [f'step-{pstep.properties["uuid"]}' for pstep in step.parents],
+        "dependencies": [
+            f'step-{pstep.properties["uuid"]}' for pstep in step.parents
+        ],
         "template": "step",
         "arguments": {
             "parameters": [
@@ -475,9 +473,10 @@ def _step_to_workflow_manifest_task(
                 },
                 {
                     "name": "image",
-                    "value": registry_ip
-                    + "/"
-                    + run_config["env_uuid_to_image"][step.properties["environment"]],
+                    "value": f"{registry_ip}/"
+                    + run_config["env_uuid_to_image"][
+                        step.properties["environment"]
+                    ],
                 },
                 {"name": "working_dir", "value": working_dir},
                 {
@@ -493,7 +492,6 @@ def _step_to_workflow_manifest_task(
             ]
         },
     }
-    return task
 
 
 def _pipeline_to_workflow_manifest(
@@ -510,7 +508,7 @@ def _pipeline_to_workflow_manifest(
         container_pipeline_file=_config.PIPELINE_FILE,
     )
 
-    manifest = {
+    return {
         "apiVersion": "argoproj.io/v1alpha1",
         "kind": "Workflow",
         "metadata": {
@@ -537,7 +535,10 @@ def _pipeline_to_workflow_manifest(
             "templates": [
                 {
                     "name": "pipeline",
-                    "retryStrategy": {"limit": "0", "backoff": {"maxDuration": "0s"}},
+                    "retryStrategy": {
+                        "limit": "0",
+                        "backoff": {"maxDuration": "0s"},
+                    },
                     "dag": {
                         "failFast": True,
                         "tasks": [
@@ -566,7 +567,10 @@ def _pipeline_to_workflow_manifest(
                             ]
                         ]
                     },
-                    "retryStrategy": {"limit": "0", "backoff": {"maxDuration": "0s"}},
+                    "retryStrategy": {
+                        "limit": "0",
+                        "backoff": {"maxDuration": "0s"},
+                    },
                     "container": {
                         "image": "{{inputs.parameters.image}}",
                         "command": [
@@ -585,7 +589,6 @@ def _pipeline_to_workflow_manifest(
             ],
         },
     }
-    return manifest
 
 
 async def run_pipeline_workflow(
@@ -715,7 +718,7 @@ async def run_pipeline_workflow(
                     uuid=step_uuid,
                 )
 
-            pipeline_status = "SUCCESS" if not had_failed_steps else "FAILURE"
+            pipeline_status = "FAILURE" if had_failed_steps else "SUCCESS"
             await update_status(
                 pipeline_status,
                 task_id,

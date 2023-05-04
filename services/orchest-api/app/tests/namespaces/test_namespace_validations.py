@@ -4,12 +4,16 @@ from app.apis import namespace_validations as ns_val
 
 
 def test_gate_post_success(client, monkeypatch):
+
+
+
     class DockerClient:
         def __init__(self):
             self.images = self
 
-        def get(*args, **kwargs):
+        def get(self, **kwargs):
             return []
+
 
     monkeypatch.setattr(ns_val, "docker_client", DockerClient())
     req = {"project_uuid": "1", "environment_uuids": ["1", "2"]}
@@ -22,12 +26,16 @@ def test_gate_post_success(client, monkeypatch):
 
 
 def test_gate_post_api_error(client, monkeypatch):
+
+
+
     class DockerClient:
         def __init__(self):
             self.images = self
 
-        def get(*args, **kwargs):
+        def get(self, **kwargs):
             raise docker.errors.APIError("")
+
 
     monkeypatch.setattr(ns_val, "docker_client", DockerClient())
     req = {"project_uuid": "1", "environment_uuids": ["1", "2"]}
@@ -41,12 +49,16 @@ def test_gate_post_api_error(client, monkeypatch):
 
 
 def test_gate_post_image_not_found_wait(client, environment_build, monkeypatch):
+
+
+
     class DockerClient:
         def __init__(self):
             self.images = self
 
-        def get(*args, **kwargs):
+        def get(self, **kwargs):
             raise docker.errors.ImageNotFound("")
+
 
     monkeypatch.setattr(ns_val, "docker_client", DockerClient())
     req = {
@@ -63,12 +75,16 @@ def test_gate_post_image_not_found_wait(client, environment_build, monkeypatch):
 
 
 def test_gate_post_image_not_found_build(client, monkeypatch):
+
+
+
     class DockerClient:
         def __init__(self):
             self.images = self
 
-        def get(*args, **kwargs):
+        def get(self, **kwargs):
             raise docker.errors.ImageNotFound("")
+
 
     monkeypatch.setattr(ns_val, "docker_client", DockerClient())
     req = {"project_uuid": "1", "environment_uuids": ["1"]}

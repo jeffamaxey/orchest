@@ -28,33 +28,35 @@ def _get_common_volumes_and_volume_mounts(
     container_pipeline_path: str = _config.PIPELINE_FILE,
     container_data_dir: str = _config.DATA_DIR,
 ) -> Tuple[Dict[str, Dict], Dict[str, Dict]]:
-    volumes = {}
-    volume_mounts = {}
-
     relative_project_dir = get_userdir_relpath(project_dir)
     relative_pipeline_path = os.path.join(relative_project_dir, pipeline_path)
 
-    volumes["userdir-pvc"] = {
-        "name": "userdir-pvc",
-        "persistentVolumeClaim": {"claimName": userdir_pvc, "readOnly": False},
+    volumes = {
+        "userdir-pvc": {
+            "name": "userdir-pvc",
+            "persistentVolumeClaim": {
+                "claimName": userdir_pvc,
+                "readOnly": False,
+            },
+        }
     }
-
-    volume_mounts["data"] = {
-        "name": "userdir-pvc",
-        "mountPath": container_data_dir,
-        "subPath": "data",
+    volume_mounts = {
+        "data": {
+            "name": "userdir-pvc",
+            "mountPath": container_data_dir,
+            "subPath": "data",
+        },
+        "project-dir": {
+            "name": "userdir-pvc",
+            "mountPath": container_project_dir,
+            "subPath": relative_project_dir,
+        },
+        "pipeline-file": {
+            "name": "userdir-pvc",
+            "mountPath": container_pipeline_path,
+            "subPath": relative_pipeline_path,
+        },
     }
-    volume_mounts["project-dir"] = {
-        "name": "userdir-pvc",
-        "mountPath": container_project_dir,
-        "subPath": relative_project_dir,
-    }
-    volume_mounts["pipeline-file"] = {
-        "name": "userdir-pvc",
-        "mountPath": container_pipeline_path,
-        "subPath": relative_pipeline_path,
-    }
-
     return volumes, volume_mounts
 
 
@@ -284,8 +286,6 @@ def _get_session_sidecar_deployment_manifest(
     pipeline_path = session_config["pipeline_path"]
     project_dir = session_config["project_dir"]
     userdir_pvc = session_config["userdir_pvc"]
-    session_type = session_type.value
-
     metadata = {
         "name": f"session-sidecar-{session_uuid}",
         "labels": {
@@ -301,6 +301,7 @@ def _get_session_sidecar_deployment_manifest(
         pipeline_path,
     )
 
+    session_type = session_type.value
     return {
         "apiVersion": "apps/v1",
         "kind": "Deployment",
@@ -324,16 +325,11 @@ def _get_session_sidecar_deployment_manifest(
                     "volumes": [
                         volumes_dict["userdir-pvc"],
                     ],
-                    # Using signal to handle sigterm doesn't work well
-                    # with threads.
                     "terminationGracePeriodSeconds": 1,
                     "containers": [
                         {
                             "name": metadata["name"],
-                            "image": (
-                                "orchest/session-sidecar:"
-                                + CONFIG_CLASS.ORCHEST_VERSION
-                            ),
+                            "image": f"orchest/session-sidecar:{CONFIG_CLASS.ORCHEST_VERSION}",
                             "imagePullPolicy": "IfNotPresent",
                             "env": [
                                 {
@@ -624,8 +620,8 @@ def _get_jupyter_enterprise_gateway_deployment_service_manifest(
         "ORCHEST_SESSION_TYPE",
         "ORCHEST_GPU_ENABLED_INSTANCE",
         "ORCHEST_REGISTRY",
+        *list(user_defined_env_vars.keys()),
     ]
-    process_env_whitelist.extend(list(user_defined_env_vars.keys()))
     process_env_whitelist = ",".join(process_env_whitelist)
 
     # Need to reference the ip because the local docker engine will
@@ -771,7 +767,7 @@ def _get_user_service_deployment_service_manifest(
     is_pbp_enabled = service_config.get("preserve_base_path", False)
     ingress_url = "service-" + service_config["name"] + "-" + session_uuid
     if is_pbp_enabled:
-        ingress_url = "pbp-" + ingress_url
+        ingress_url = f"pbp-{ingress_url}"
 
     # Replace $BASE_PATH_PREFIX with service_base_url.  NOTE:
     # this substitution happens after service_config["name"] is read,
@@ -795,7 +791,7 @@ def _get_user_service_deployment_service_manifest(
             )
     except Exception as e:
 
-        logger.error("Failed to fetch user_env_variables: %s [%s]" % (e, type(e)))
+        logger.error(f"Failed to fetch user_env_variables: {e} [{type(e)}]")
 
         traceback.print_exc()
 
@@ -814,10 +810,7 @@ def _get_user_service_deployment_service_manifest(
     environment["ORCHEST_PIPELINE_PATH"] = _config.PIPELINE_FILE
     environment["ORCHEST_SESSION_UUID"] = session_uuid
     environment["ORCHEST_SESSION_TYPE"] = session_type
-    env = []
-    for k, v in environment.items():
-        env.append({"name": k, "value": v})
-
+    env = [{"name": k, "value": v} for k, v in environment.items()]
     volume_mounts = []
     volumes = []
     sbinds = service_config.get("binds", {})
@@ -851,7 +844,7 @@ def _get_user_service_deployment_service_manifest(
 
         image = image.replace(prefix, "")
         image = img_mappings[image]
-        image = registry_ip + "/" + image
+        image = f"{registry_ip}/{image}"
 
     metadata = {
         "name": service_config["name"] + "-" + session_uuid,
@@ -923,23 +916,21 @@ def _get_user_service_deployment_service_manifest(
     }
 
     if service_config["exposed"]:
-        ingress_paths = []
-        for port in service_config.get("ports", []):
-            ingress_paths.append(
-                {
-                    "backend": {
-                        "service": {
-                            "name": metadata["name"],
-                            "port": {"number": port},
-                        }
-                    },
-                    "path": f"/({ingress_url}_{port}.*)"
-                    if is_pbp_enabled
-                    else f"/{ingress_url}_{port}(/|$)(.*)",
-                    "pathType": "Prefix",
-                }
-            )
-
+        ingress_paths = [
+            {
+                "backend": {
+                    "service": {
+                        "name": metadata["name"],
+                        "port": {"number": port},
+                    }
+                },
+                "path": f"/({ingress_url}_{port}.*)"
+                if is_pbp_enabled
+                else f"/{ingress_url}_{port}(/|$)(.*)",
+                "pathType": "Prefix",
+            }
+            for port in service_config.get("ports", [])
+        ]
         ingress_metadata = copy.deepcopy(metadata)
 
         # Decide rewrite target based on pbp

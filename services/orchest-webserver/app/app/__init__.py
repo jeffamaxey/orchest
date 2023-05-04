@@ -104,7 +104,7 @@ def create_app(to_migrate_db=False):
 
     # Add below `to_migrate_db` check, otherwise it will get logged
     # twice. Because before the app starts we first migrate.
-    app.logger.info("Flask CONFIG: %s" % app.config)
+    app.logger.info(f"Flask CONFIG: {app.config}")
 
     # Initialize posthog ASAP, at least before setting up the scheduler
     # but after `to_migrate_db`.
@@ -115,13 +115,7 @@ def create_app(to_migrate_db=False):
     if not _utils.is_running_from_reloader():
         with app.app_context():
             try:
-                if app.config.get("TESTING", False):
-                    # Do nothing.
-                    # In case of tests we always want to run cleanup.
-                    # Because every test will get a clean app, the same
-                    # code should run for all tests.
-                    pass
-                else:
+                if not app.config.get("TESTING", False):
                     app.logger.debug("Trying to create /tmp/webserver_init_lock")
                     os.mkdir("/tmp/webserver_init_lock")
                     app.logger.info("/tmp/webserver_init_lock successfully created.")

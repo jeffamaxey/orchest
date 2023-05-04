@@ -209,7 +209,7 @@ class SioStreamedTask:
 
         @sio_client.on("connect", namespace=namespace)
         def connect():
-            logging.info("connected to namespace %s" % namespace)
+            logging.info(f"connected to namespace {namespace}")
             # https://docs.python.org/2/library/threading.html#threading.Lock
             # any thread may release it
             connect_lock.release()
@@ -260,7 +260,7 @@ class SioStreamedTask:
 
                 task_data = SioStreamedTask.poll_fd_data(communication_pipe_read)
                 if task_data:
-                    logging.info("output: %s" % task_data)
+                    logging.info(f"output: {task_data}")
                     sio_client.emit(
                         "sio_streamed_task_data",
                         {
@@ -302,7 +302,7 @@ class SioStreamedTask:
                     break
 
         except Exception as ex:
-            logging.warning("Exception during execution: %s" % ex)
+            logging.warning(f"Exception during execution: {ex}")
             status = "FAILED"
         finally:
             # Cleanup phase. Close the pipes, emit a closing message,
@@ -337,6 +337,5 @@ class SioStreamedTask:
     def poll_fd_data(fd):
         (data_ready, _, _) = select.select([fd], [], [], 0)
         if data_ready:
-            output = os.read(fd, SioStreamedTask.MAX_READ_BYTES).decode()
-            return output
+            return os.read(fd, SioStreamedTask.MAX_READ_BYTES).decode()
         return None

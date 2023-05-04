@@ -147,43 +147,39 @@ def _interpret_metadata(metadata: str) -> Tuple[str, str, str]:
         )
     metadata = metadata.split(Config.__METADATA_SEPARATOR__)
 
-    # Metadata that was stored in memory has 4 elements, first is
-    # ignored because it's an internal flag.
-    # Metadata that was stored on disk has 3 elements.
-    if len(metadata) in [3, 4]:
-        timestamp, serialization, name = metadata[-3:]
-
-        # check timestamp for validity
-        try:
-            datetime.fromisoformat(timestamp)
-        except ValueError:
-            raise error.InvalidMetaDataError(
-                f"Metadata {metadata} has an invalid timestamp ({timestamp})."
-            )
-        except AttributeError:
-            # ``fromisoformat`` was added in Python3.7. For earlier
-            # versions we will simply not check the timestamp for
-            # validity. Since we know we are always writing ISO
-            # formatted strings, this case only becomes an issue if the
-            # user is manually writing the data passing.
-            pass
-
-        # check serialization for correctness
-        if serialization not in [
-            Serialization.ARROW_TABLE.name,
-            Serialization.ARROW_BATCH.name,
-            Serialization.PICKLE.name,
-        ]:
-            raise error.InvalidMetaDataError(
-                f"Metadata {metadata} has an "
-                f"invalid serialization ({serialization})."
-            )
-
-        return timestamp, serialization, name
-    else:
+    if len(metadata) not in {3, 4}:
         raise error.InvalidMetaDataError(
             f"Metadata {metadata} has an invalid number of elements."
         )
+    timestamp, serialization, name = metadata[-3:]
+
+    # check timestamp for validity
+    try:
+        datetime.fromisoformat(timestamp)
+    except ValueError:
+        raise error.InvalidMetaDataError(
+            f"Metadata {metadata} has an invalid timestamp ({timestamp})."
+        )
+    except AttributeError:
+        # ``fromisoformat`` was added in Python3.7. For earlier
+        # versions we will simply not check the timestamp for
+        # validity. Since we know we are always writing ISO
+        # formatted strings, this case only becomes an issue if the
+        # user is manually writing the data passing.
+        pass
+
+    # check serialization for correctness
+    if serialization not in [
+        Serialization.ARROW_TABLE.name,
+        Serialization.ARROW_BATCH.name,
+        Serialization.PICKLE.name,
+    ]:
+        raise error.InvalidMetaDataError(
+            f"Metadata {metadata} has an "
+            f"invalid serialization ({serialization})."
+        )
+
+    return timestamp, serialization, name
 
 
 class _PlasmaConnector:
@@ -427,7 +423,7 @@ def _deserialize_output_disk(full_path: str, serialization: str) -> Any:
         with pa.memory_map(file_path, "rb") as input_file:
             # return the first batch (the only one)
             stream = pa.ipc.open_stream(input_file)
-            return [b for b in stream][0]
+            return list(stream)[0]
     elif serialization == Serialization.PICKLE.name:
         # https://docs.python.org/3/library/pickle.html
         # The argument file must have three methods:
@@ -521,7 +517,7 @@ def _resolve_disk(step_uuid: str) -> Dict[str, Any]:
             "Try rerunning it."
         )
 
-    res = {
+    return {
         "method_to_call": _get_output_disk,
         "method_args": (step_uuid,),
         "method_kwargs": {"serialization": serialization},
@@ -531,7 +527,6 @@ def _resolve_disk(step_uuid: str) -> Dict[str, Any]:
             "name": name,
         },
     }
-    return res
 
 
 def _output_to_memory(
@@ -661,73 +656,6 @@ def output_to_memory(
     _print_warning_message(msg)
     output(data, name)
     return
-    try:
-        _check_data_name_validity(name)
-    except (ValueError, TypeError) as e:
-        raise error.DataInvalidNameError(e)
-
-    _warn_multiple_data_output_if_necessary(name)
-
-    try:
-        with open(Config.PIPELINE_DEFINITION_PATH, "r") as f:
-            pipeline_definition = json.load(f)
-    except FileNotFoundError:
-        raise error.PipelineDefinitionNotFoundError(
-            f"Could not open {Config.PIPELINE_DEFINITION_PATH}."
-        )
-
-    pipeline = Pipeline.from_json(pipeline_definition)
-
-    try:
-        step_uuid = get_step_uuid(pipeline)
-    except error.StepUUIDResolveError:
-        raise error.StepUUIDResolveError("Failed to determine where to output data to.")
-
-    # Serialize the object and collect the serialization metadata.
-    obj, serialization = _serialize(data)
-
-    try:
-        client = _PlasmaConnector().client
-    except error.OrchestNetworkError as e:
-        if not disk_fallback:
-            raise error.OrchestNetworkError(e)
-
-        return output_to_disk(obj, name, serialization=serialization)
-
-    # Try to output to memory.
-    obj_id = _convert_uuid_to_object_id(step_uuid)
-    metadata = [
-        str(Config.IDENTIFIER_SERIALIZATION),
-        # The plasma store allows to get the creation timestamp, but
-        # creating it this way makes the process more consistent with
-        # the metadata we are writing when outputting to disk, moreover,
-        # it makes the code less dependent on the plasma store API.
-        datetime.utcnow().isoformat(timespec="seconds"),
-        serialization.name,
-        # Can't simply assign to name beforehand because name might be
-        # passed to output_to_disk, which needs to check for name
-        # validity itself since its a public function.
-        name if name is not None else Config._RESERVED_UNNAMED_OUTPUTS_STR,
-    ]
-    metadata = bytes(Config.__METADATA_SEPARATOR__.join(metadata), "utf-8")
-
-    try:
-        obj_id = _output_to_memory(obj, client, obj_id=obj_id, metadata=metadata)
-
-    except MemoryError:
-        if not disk_fallback:
-            raise MemoryError("Data does not fit in memory.")
-
-        # TODO: note that metadata is lost when falling back to disk.
-        #       Therefore we will only support metadata added by the
-        #       user, once disk also supports passing metadata.
-        return output_to_disk(
-            obj,
-            name,
-            serialization=serialization,
-        )
-
-    return
 
 
 def _deserialize_output_memory(
@@ -777,7 +705,7 @@ def _deserialize_output_memory(
     elif serialization == Serialization.ARROW_BATCH.name:
         # Return the first batch (the only one).
         stream = pa.ipc.open_stream(buffer)
-        return [b for b in stream][0]
+        return list(stream)[0]
 
     elif serialization == Serialization.PICKLE.name:
         # Can load the buffer directly because its a bytes-like-object:
@@ -889,7 +817,7 @@ def _resolve_memory(step_uuid: str, consumer: str = None) -> Dict[str, Any]:
     metadata = _interpret_metadata(metadata.decode("utf-8"))
     timestamp, serialization, name = metadata
 
-    res = {
+    return {
         "method_to_call": _get_output_memory,
         "method_args": (step_uuid,),
         "method_kwargs": {"consumer": consumer},
@@ -899,7 +827,6 @@ def _resolve_memory(step_uuid: str, consumer: str = None) -> Dict[str, Any]:
             "name": name,
         },
     }
-    return res
 
 
 def _resolve(
@@ -1084,9 +1011,9 @@ def get_inputs(
         if metadata["name"] != Config._RESERVED_UNNAMED_OUTPUTS_STR:
             collisions_dict[metadata["name"]].append(parent.properties["title"])
 
-    # If there are collisions raise an error.
-    collisions_dict = {k: v for k, v in collisions_dict.items() if len(v) > 1}
-    if collisions_dict:
+    if collisions_dict := {
+        k: v for k, v in collisions_dict.items() if len(v) > 1
+    }:
         msg = "".join(
             [
                 f"\n{name}: {sorted(step_names)}"

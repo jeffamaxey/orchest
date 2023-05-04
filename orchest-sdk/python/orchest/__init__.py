@@ -39,12 +39,14 @@ if orchest_version is not None:
         elif old.startswith("v") or new.startswith("v"):
             raise ValueError("All arguments should follow the same versioning scheme.")
 
-        for o, n in zip(old.split("."), new.split(".")):
-            if int(o) > int(n):
-                return False
-            elif int(o) < int(n):
-                return True
-        return True
+        return next(
+            (
+                int(o) < int(n)
+                for o, n in zip(old.split("."), new.split("."))
+                if int(o) != int(n)
+            ),
+            True,
+        )
 
     def __gt(old: str, new: str) -> bool:
         return not __lte(old, new)

@@ -206,7 +206,7 @@ def _echo_version(
         if deployment_versions is not None:
             differences = False
             utils.echo("Deployments:")
-            max_length = max([len(k) for k in deployment_versions.keys()])
+            max_length = max(len(k) for k in deployment_versions.keys())
             buffer_space = max_length + 10
 
             for depl in sorted(deployment_versions.keys()):
@@ -245,18 +245,12 @@ def version(ext: bool = False, output_json: bool = False) -> None:
         return
 
     deployments = k8sw.get_orchest_deployments(config.ORCHEST_DEPLOYMENTS)
-    depl_versions = {}
-    for (
-        name,
-        depl,
-    ) in zip(config.ORCHEST_DEPLOYMENTS, deployments):
-        if depl is None:
-            depl_versions[name] = None
-        else:
-            depl_versions[name] = depl.spec.template.spec.containers[0].image.split(
-                ":"
-            )[1]
-
+    depl_versions = {
+        name: None
+        if depl is None
+        else depl.spec.template.spec.containers[0].image.split(":")[1]
+        for name, depl in zip(config.ORCHEST_DEPLOYMENTS, deployments)
+    }
     _echo_version(cluster_version, depl_versions, output_json)
 
 
@@ -440,11 +434,13 @@ def stop():
 
 def _wait_deployments_to_be_ready(deployments: List[str], progress_bar) -> None:
     while deployments:
-        tmp_deployments_to_start = []
-        for name, depl in zip(deployments, k8sw.get_orchest_deployments(deployments)):
-            if depl is None or depl.status.ready_replicas != depl.spec.replicas:
-                tmp_deployments_to_start.append(name)
-
+        tmp_deployments_to_start = [
+            name
+            for name, depl in zip(
+                deployments, k8sw.get_orchest_deployments(deployments)
+            )
+            if depl is None or depl.status.ready_replicas != depl.spec.replicas
+        ]
         progress_bar.update(len(deployments) - len(tmp_deployments_to_start))
         deployments = tmp_deployments_to_start
         time.sleep(1)
@@ -452,14 +448,17 @@ def _wait_deployments_to_be_ready(deployments: List[str], progress_bar) -> None:
 
 def _wait_daemonsets_to_be_ready(daemonsets: List[str], progress_bar) -> None:
     while daemonsets:
-        tmp_daemonsets_to_start = []
-        for name, daem in zip(daemonsets, k8sw.get_orchest_daemonsets(daemonsets)):
+        tmp_daemonsets_to_start = [
+            name
+            for name, daem in zip(
+                daemonsets, k8sw.get_orchest_daemonsets(daemonsets)
+            )
             if (
                 daem is None
-                or daem.status.number_ready != daem.status.desired_number_scheduled
-            ):
-                tmp_daemonsets_to_start.append(name)
-
+                or daem.status.number_ready
+                != daem.status.desired_number_scheduled
+            )
+        ]
         progress_bar.update(len(daemonsets) - len(tmp_daemonsets_to_start))
         daemonsets = tmp_daemonsets_to_start
         time.sleep(1)
@@ -536,18 +535,6 @@ def start(
         orchest_config["TELEMETRY_DISABLED"] = True
         utils.set_orchest_config(orchest_config)
 
-        if dev or dev_orchest_webserver:
-            utils.echo("Setting dev mode for orchest-webserver.")
-            k8sw.patch_orchest_webserver_for_dev_mode()
-
-        if dev or dev_orchest_api:
-            utils.echo("Setting dev mode for orchest-api.")
-            k8sw.patch_orchest_api_for_dev_mode()
-
-        if dev or dev_auth_server:
-            utils.echo("Setting dev mode for auth-server.")
-            k8sw.patch_auth_server_for_dev_mode()
-    # No op if there those services weren't running with --dev mode.
     else:
         if k8sw.is_running_in_dev_mode("orchest-webserver"):
             utils.echo("Unsetting dev mode for orchest-webserver.")
@@ -559,6 +546,17 @@ def start(
             utils.echo("Unsetting dev mode for auth-server.")
             k8sw.unpatch_auth_server_dev_mode()
 
+    if dev or dev_orchest_webserver:
+        utils.echo("Setting dev mode for orchest-webserver.")
+        k8sw.patch_orchest_webserver_for_dev_mode()
+
+    if dev or dev_orchest_api:
+        utils.echo("Setting dev mode for orchest-api.")
+        k8sw.patch_orchest_api_for_dev_mode()
+
+    if dev or dev_auth_server:
+        utils.echo("Setting dev mode for auth-server.")
+        k8sw.patch_auth_server_for_dev_mode()
     deployments_to_start = [d.metadata.name for d in deployments_to_start]
     daemonsets_to_start = [d.metadata.name for d in daemonsets_to_start]
     utils.echo("Starting...")
@@ -586,8 +584,7 @@ def start(
         _wait_daemonsets_to_be_ready(daemonsets_to_start, progress_bar)
         _wait_deployments_to_be_ready(deployments_to_start, progress_bar)
 
-    host_names = k8sw.get_host_names()
-    if host_names:
+    if host_names := k8sw.get_host_names():
         http_host_names = [f"http://{hn}" for hn in host_names]
         utils.echo(
             "Orchest is running, you can reach it locally by mapping the cluster ip "
@@ -650,8 +647,7 @@ def add_user(username: str, password: str, token: str, is_admin: str) -> None:
 
     command = ["python", "add_user.py", username, password]
     if token:
-        command.append("--token")
-        command.append(token)
+        command.extend(("--token", token))
     if is_admin:
         command.append("--is_admin")
 
@@ -733,12 +729,11 @@ def _update() -> None:
 
     # Check if Orchest is actually stopped.
     depls = k8sw.get_orchest_deployments()
-    depls = [
+    if depls := [
         depl.metadata.name
         for depl in depls
         if depl is not None and depl.spec.replicas > 0
-    ]
-    if depls:
+    ]:
         utils.echo(
             "Orchest is not stopped, thus the update operation cannot proceed. "
             f"Deployments that aren't stopped: {sorted(depls)}.",
@@ -764,9 +759,8 @@ def _update() -> None:
     # Preserve the current values, i.e. avoid helm overwriting them with
     # default values.
     injected_env_vars = {}
-    injected_env_vars.update(utils.get_celery_parallelism_level_from_config())
-    host_names = k8sw.get_host_names()
-    if host_names:
+    injected_env_vars |= utils.get_celery_parallelism_level_from_config()
+    if host_names := k8sw.get_host_names():
         injected_env_vars["ORCHEST_FQDN"] = host_names[0]
 
     registry_storage_class = k8sw.get_registry_storage_class()

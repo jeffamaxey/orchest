@@ -157,7 +157,7 @@ def test_environment_build(
 
     if abort:
         assert put_requests[1] == "ABORTED"
-    elif any([event is None for event in build_events]):
+    elif any(event is None for event in build_events):
         assert put_requests[1] == "FAILURE"
     else:
         assert put_requests[1] == "SUCCESS"

@@ -327,8 +327,7 @@ def get_environment_capabilities(environment_uuid, project_uuid):
 
     try:
         response = requests.get(
-            "http://orchest-webserver/store/environments/%s/%s"
-            % (project_uuid, environment_uuid)
+            f"http://orchest-webserver/store/environments/{project_uuid}/{environment_uuid}"
         )
         response.raise_for_status()
     except Exception as e:
@@ -370,44 +369,36 @@ def get_step_and_kernel_volumes_and_volume_mounts(
         second a list of volume_mounts, valid in k8s pod manifest. The
         two lists are coupled, each volume mount is related to a volume.
     """
-    volumes = []
-    volume_mounts = []
-
     relative_project_dir = get_userdir_relpath(project_dir)
     relative_pipeline_path = os.path.join(relative_project_dir, pipeline_file)
 
-    volumes.append(
+    volumes = [
         {
             "name": "userdir-pvc",
-            "persistentVolumeClaim": {"claimName": userdir_pvc, "readOnly": False},
+            "persistentVolumeClaim": {
+                "claimName": userdir_pvc,
+                "readOnly": False,
+            },
         }
-    )
-
-    volume_mounts.append(
-        {"name": "userdir-pvc", "mountPath": "/data", "subPath": "data"}
-    )
-    volume_mounts.append(
+    ]
+    volume_mounts = [
+        {"name": "userdir-pvc", "mountPath": "/data", "subPath": "data"},
         {
             "name": "userdir-pvc",
             "mountPath": "/userdir/projects",
             "subPath": "projects",
-        }
-    )
-    volume_mounts.append(
+        },
         {
             "name": "userdir-pvc",
             "mountPath": container_project_dir,
             "subPath": relative_project_dir,
-        }
-    )
-    volume_mounts.append(
+        },
         {
             "name": "userdir-pvc",
             "mountPath": container_pipeline_file,
             "subPath": relative_pipeline_path,
-        }
-    )
-
+        },
+    ]
     return volumes, volume_mounts
 
 
@@ -428,10 +419,8 @@ def is_running_from_reloader():
 
 def are_environment_variables_valid(env_variables: Dict[str, str]) -> bool:
     return isinstance(env_variables, dict) and all(
-        [
-            is_env_var_name_valid(var) and isinstance(value, str)
-            for var, value in env_variables.items()
-        ]
+        is_env_var_name_valid(var) and isinstance(value, str)
+        for var, value in env_variables.items()
     )
 
 
@@ -458,30 +447,27 @@ def is_service_definition_valid(service: Dict[str, Any]) -> bool:
         and service["image"]
         and isinstance(service["scope"], list)
         and isinstance(service.get("preserve_base_path", False), bool)
-        and
-        # Allowed scopes.
-        all([sc in ["interactive", "noninteractive"] for sc in service["scope"]])
+        and all(
+            sc in ["interactive", "noninteractive"] for sc in service["scope"]
+        )
         and isinstance(service.get("command", ""), str)
         and isinstance(service.get("args", ""), str)
         and isinstance(service.get("binds", {}), dict)
         and all(
-            [
-                isinstance(s, str) and isinstance(t, str) and s and t
-                for s, t in service.get("binds", {}).items()
-            ]
+            isinstance(s, str) and isinstance(t, str) and s and t
+            for s, t in service.get("binds", {}).items()
         )
-        and
-        # Allowed binds.
-        all([bind in ["/data", "/project-dir"] for bind in service.get("binds", {})])
+        and all(
+            bind in ["/data", "/project-dir"]
+            for bind in service.get("binds", {})
+        )
         and isinstance(service.get("ports"), list)
-        and all([isinstance(port, int) for port in service["ports"]])
+        and all(isinstance(port, int) for port in service["ports"])
         and len(service["ports"]) > 0
         and isinstance(service.get("env_variables_inherit", []), list)
         and all(
-            [
-                is_env_var_name_valid(var)
-                for var in service.get("env_variables_inherit", [])
-            ]
+            is_env_var_name_valid(var)
+            for var in service.get("env_variables_inherit", [])
         )
         and are_environment_variables_valid(service.get("env_variables", {}))
         and isinstance(service.get("exposed"), bool)
@@ -491,10 +477,8 @@ def is_service_definition_valid(service: Dict[str, Any]) -> bool:
 
 def is_services_definition_valid(services: Dict[str, Dict[str, Any]]) -> bool:
     return isinstance(services, dict) and all(
-        [
-            is_service_definition_valid(service) and sname == service["name"]
-            for sname, service in services.items()
-        ]
+        is_service_definition_valid(service) and sname == service["name"]
+        for sname, service in services.items()
     )
 
 

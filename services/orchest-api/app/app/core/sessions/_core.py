@@ -301,11 +301,10 @@ def cleanup_resources(session_uuid: str, wait_for_completion: bool = False):
         logger.info("Waiting for resources to be deleted.")
         tmp_resources = []
 
-        resource_list_threads = []
-        for resource_name, list_f, _ in resources_to_delete:
-            resource_list_threads.append(
-                list_f(ns, label_selector=label_selector, async_req=True)
-            )
+        resource_list_threads = [
+            list_f(ns, label_selector=label_selector, async_req=True)
+            for resource_name, list_f, _ in resources_to_delete
+        ]
         for (resource_name, list_f, delete_f), thread in zip(
             resources_to_delete, resource_list_threads
         ):

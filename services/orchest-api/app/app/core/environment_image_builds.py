@@ -60,22 +60,14 @@ def write_environment_dockerfile(
     Returns:
 
     """
-    statements = []
-
-    statements.append(f"FROM {base_image}")
-    # Create a layer (apparently helps with buildkit caching base image
-    # layers). Also helps with logs (see _build_image).
-    statements.append("RUN echo orchest")
-    statements.append(f"LABEL _orchest_project_uuid={project_uuid}")
-    statements.append(f"LABEL _orchest_environment_uuid={env_uuid}")
-    statements.append(f'WORKDIR {os.path.join("/", work_dir)}')
-
-    # Copy the entire context, that is, given the current use case, that
-    # we are copying the project directory (from the snapshot) into the
-    # image that is to be built, this allows the user defined script
-    # defined through orchest to make use of files that are part of its
-    # project, e.g. a requirements.txt or other scripts.
-    statements.append("COPY . .")
+    statements = [
+        f"FROM {base_image}",
+        "RUN echo orchest",
+        f"LABEL _orchest_project_uuid={project_uuid}",
+        f"LABEL _orchest_environment_uuid={env_uuid}",
+        f'WORKDIR {os.path.join("/", work_dir)}',
+        "COPY . .",
+    ]
 
     # Permission statements.
     ps = [
@@ -85,7 +77,7 @@ def write_environment_dockerfile(
         "chmod g+rwx . > /dev/null 2>&1 ",
     ]
     # sudo'd permission statements.
-    sps = ["sudo " + s for s in ps]
+    sps = [f"sudo {s}" for s in ps]
     ps = " && ".join(ps)
     sps = " && ".join(sps)
     msg = (
@@ -251,11 +243,7 @@ def prepare_build_context(task_uuid, project_uuid, environment_uuid, project_pat
 
         # Move the startup script to the context.
         os.system(
-            'cp "%s" "%s"'
-            % (
-                os.path.join(environment_path, _config.ENV_SETUP_SCRIPT_FILE_NAME),
-                os.path.join(snapshot_path, bash_script_name),
-            )
+            f'cp "{os.path.join(environment_path, _config.ENV_SETUP_SCRIPT_FILE_NAME)}" "{os.path.join(snapshot_path, bash_script_name)}"'
         )
 
     # hide stuff from the user

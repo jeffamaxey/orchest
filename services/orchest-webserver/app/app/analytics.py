@@ -245,11 +245,11 @@ class _Anonymizer:
         job_def.pop("pipeline_definition", None)
         job_def["pipeline_run_spec"].pop("run_config", None)
 
-        derived_properties = {"job_definition": {}}
-        derived_properties["job_definition"] = {
-            "parameterized_runs_count": len(job_def.pop("parameters", [])),
+        return {
+            "job_definition": {
+                "parameterized_runs_count": len(job_def.pop("parameters", []))
+            }
         }
-        return derived_properties
 
     @staticmethod
     def job_duplicate(event_properties: dict) -> dict:
@@ -260,12 +260,12 @@ class _Anonymizer:
         job_def = event_properties["job_definition"]
         job_def.pop("strategy_json", None)
 
-        derived_properties = {"job_definition": {}}
-        derived_properties["job_definition"] = {
-            "env_variables_count": len(job_def.pop("env_variables", {})),
-            "parameterized_runs_count": len(job_def.pop("parameters", [])),
+        return {
+            "job_definition": {
+                "env_variables_count": len(job_def.pop("env_variables", {})),
+                "parameterized_runs_count": len(job_def.pop("parameters", [])),
+            }
         }
-        return derived_properties
 
     @staticmethod
     def session_start(event_properties: dict) -> dict:
@@ -278,18 +278,16 @@ class _Anonymizer:
     @staticmethod
     def pipeline_run_start(event_properties: dict) -> dict:
         pdef = event_properties["pipeline_definition"]
-        derived_properties = {
+        return {
             "pipeline_definition": _anonymize_pipeline_definition(pdef),
         }
-        return derived_properties
 
     @staticmethod
     def pipeline_save(event_properties: dict) -> dict:
         pdef = event_properties["pipeline_definition"]
-        derived_properties = {
+        return {
             "pipeline_definition": _anonymize_pipeline_definition(pdef),
         }
-        return derived_properties
 
     @staticmethod
     def environment_image_build_start(event_properties: dict) -> dict:
@@ -308,10 +306,9 @@ def _anonymize_service_definition(definition: dict) -> dict:
     definition.pop("env_variables", None)
     definition.pop("env_variables_inherit", None)
 
-    derived_properties = {
+    return {
         "binds_count": len(definition.pop("binds", {})),
     }
-    return derived_properties
 
 
 def _anonymize_pipeline_definition(definition: dict) -> dict:

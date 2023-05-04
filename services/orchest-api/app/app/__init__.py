@@ -221,13 +221,12 @@ def trigger_conditional_jupyter_image_build(app):
 
     # check if Jupyter setup_script is non-empty
     jupyter_setup_script = os.path.join("/userdir", _config.JUPYTER_SETUP_SCRIPT)
-    if os.path.isfile(jupyter_setup_script):
-        with open(jupyter_setup_script, "r") as file:
-            if len(file.read()) == 0:
-                return
-    else:
+    if not os.path.isfile(jupyter_setup_script):
         return
 
+    with open(jupyter_setup_script, "r") as file:
+        if len(file.read()) == 0:
+            return
     # If the image has already been built no need to build again.
     if not utils.get_jupyter_server_image_to_use().startswith("orchest/jupyter-server"):
         return

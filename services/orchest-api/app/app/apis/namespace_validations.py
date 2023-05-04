@@ -52,11 +52,7 @@ def validate_environment(project_uuid: str, env_uuid: str) -> Tuple[str, Optiona
         num_failed_builds = env_builds.filter(
             models.EnvironmentImageBuild.status.in_(["FAILURE"])
         ).count()
-        if num_failed_builds > 0:
-            return "fail", "RETRY"
-
-        return "fail", "BUILD"
-
+        return ("fail", "RETRY") if num_failed_builds > 0 else ("fail", "BUILD")
     return "pass", None
 
 

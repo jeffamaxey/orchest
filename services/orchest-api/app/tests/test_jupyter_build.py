@@ -21,9 +21,9 @@ _NOT_TO_BE_LOGGED = "_NOT_TO_BE_LOGGED"
 @pytest.fixture(scope="module")
 def patch_environ_orchest_version():
     old_orchest_version = os.environ.get("ORCHEST_VERSION")
-    os.environ.update({"ORCHEST_VERSION": "FAKE_VERSION_TEST"})
+    os.environ["ORCHEST_VERSION"] = "FAKE_VERSION_TEST"
     yield
-    os.environ.update({"ORCHEST_VERSION": old_orchest_version})
+    os.environ["ORCHEST_VERSION"] = old_orchest_version
 
 
 @pytest.mark.parametrize(

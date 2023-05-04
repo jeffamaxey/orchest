@@ -237,7 +237,7 @@ def scale_down_orchest_daemonsets(daemonsets: Optional[List[str]] = None) -> Non
 
 
 def _get_deployment_container_env_var_patch(container_name: str, env_vars=dict) -> dict:
-    patch = {
+    return {
         "spec": {
             "template": {
                 "spec": {
@@ -254,7 +254,6 @@ def _get_deployment_container_env_var_patch(container_name: str, env_vars=dict) 
             }
         }
     }
-    return patch
 
 
 def set_orchest_cluster_version(version: str):
@@ -375,9 +374,8 @@ def get_ongoing_status_change() -> Optional[config.OrchestStatus]:
     pod = _get_ongoing_status_changing_pod()
     if pod is None:
         return None
-    else:
-        cmd = pod.metadata.labels["command"]
-        return config.ORCHEST_OPERATION_TO_STATUS_MAPPING[cmd]
+    cmd = pod.metadata.labels["command"]
+    return config.ORCHEST_OPERATION_TO_STATUS_MAPPING[cmd]
 
 
 _cleanup_pod_manifest = {
@@ -473,8 +471,7 @@ def get_update_pod_manifest() -> dict:
         utils.echo("Orchest is already at the latest version.")
         raise typer.Exit(0)
 
-    manifest = _get_orchest_ctl_update_post_manifest(latest_version)
-    return manifest
+    return _get_orchest_ctl_update_post_manifest(latest_version)
 
 
 def wait_for_pod_status(
@@ -486,7 +483,7 @@ def wait_for_pod_status(
 ) -> None:
     status = None
     while max_retries > 0:
-        max_retries = max_retries - 1
+        max_retries -= 1
         if max_retries % notify_progress_retries_period == 0:
             utils.echo(notify_progress_message)
         try:

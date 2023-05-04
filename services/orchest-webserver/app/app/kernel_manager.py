@@ -39,8 +39,7 @@ def populate_kernels(app, db, project_uuid):
             kernel_json_template = f.read()
     except Exception as e:
         app.logger.info(
-            "Error reading kernel.json at path %s. Error: %s"
-            % (kernel_json_template_path, e)
+            f"Error reading kernel.json at path {kernel_json_template_path}. Error: {e}"
         )
         raise e
 
@@ -75,8 +74,7 @@ def populate_kernels(app, db, project_uuid):
                 f.write(filled_kernel_json)
         except Exception as e:
             app.logger.info(
-                "Error writing kernel.json at path %s. Error: %s"
-                % (kernel_json_path, e)
+                f"Error writing kernel.json at path {kernel_json_path}. Error: {e}"
             )
             raise e
 
@@ -86,4 +84,4 @@ def populate_kernels(app, db, project_uuid):
     )
     launch_kubernetes_dest_path = os.path.join(kernels_dir_path, "launch_kubernetes.py")
 
-    os.system('cp "%s" "%s"' % (launch_kubernetes_path, launch_kubernetes_dest_path))
+    os.system(f'cp "{launch_kubernetes_path}" "{launch_kubernetes_dest_path}"')

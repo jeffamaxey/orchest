@@ -36,7 +36,8 @@ def _get_interactive_session_services_specs() -> Dict[str, Any]:
     pp_uuid = Config.PIPELINE_UUID
 
     resp = requests.get(
-        "http://" + Config.ORCHEST_API_ADDRESS + f"/api/sessions/{proj_uuid}/{pp_uuid}"
+        f"http://{Config.ORCHEST_API_ADDRESS}"
+        + f"/api/sessions/{proj_uuid}/{pp_uuid}"
     )
 
     if resp.status_code == 404:
@@ -105,7 +106,7 @@ def get_service(name) -> Dict[str, Any]:
     if name in services_specs:
         return _generate_urls(services_specs[name])
 
-    raise ServiceNotFound("Could not find service with name %s" % name)
+    raise ServiceNotFound(f"Could not find service with name {name}")
 
 
 def get_services() -> Dict[str, Dict[str, Any]]:
@@ -118,9 +119,7 @@ def get_services() -> Dict[str, Dict[str, Any]]:
 
     """
     services_specs = _get_session_services_specs()
-    services = {}
-
-    for sname, service in services_specs.items():
-        services[sname] = _generate_urls(service)
-
-    return services
+    return {
+        sname: _generate_urls(service)
+        for sname, service in services_specs.items()
+    }

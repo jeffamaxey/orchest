@@ -103,12 +103,12 @@ class ImagePuller(object):
 
         while True:
             image_name = await queue.get()
-            if self.policy == Policy.IfNotPresent:
-                if image_name in self._curr_pulling_imgs or await self.image_exists(
-                    image_name
-                ):
-                    queue.task_done()
-                    continue
+            if self.policy == Policy.IfNotPresent and (
+                image_name in self._curr_pulling_imgs
+                or await self.image_exists(image_name)
+            ):
+                queue.task_done()
+                continue
 
             self.logger.info(
                 f"Image '{image_name}' " "is not found - attempting pull..."
@@ -170,7 +170,7 @@ class ImagePuller(object):
         finally:
             self._curr_pulling_imgs.remove(image_name)
         t1 = time.time()
-        if result is True:
+        if result:
             self.logger.info(f"Pulled image '{image_name}' in {(t1 - t0):.3f} secs.")
         return result
 

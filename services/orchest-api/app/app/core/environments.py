@@ -40,10 +40,11 @@ def get_env_uuids_to_image_mappings(
         )
         env_uuid_to_image[env_uuid] = env_image
 
-    envs_missing_image = [
-        env_uuid for env_uuid, image in env_uuid_to_image.items() if image is None
-    ]
-    if len(envs_missing_image) > 0:
+    if envs_missing_image := [
+        env_uuid
+        for env_uuid, image in env_uuid_to_image.items()
+        if image is None
+    ]:
         msg = (
             "Some referenced environments do not exist in the project. The"
             f"following environments do not exist: {envs_missing_image}.\n\n"
@@ -69,8 +70,8 @@ def lock_environment_images_for_run(
     _lock_environments(project_uuid, environment_uuids)
     env_uuid_to_image = get_env_uuids_to_image_mappings(project_uuid, environment_uuids)
 
-    env_uuid_to_image_name = {}
     run_image_mappings = []
+    env_uuid_to_image_name = {}
     for env_uuid, image in env_uuid_to_image.items():
         run_image_mappings.append(
             models.PipelineRunInUseImage(
@@ -80,12 +81,9 @@ def lock_environment_images_for_run(
                 environment_image_tag=image.tag,
             )
         )
-        env_uuid_to_image_name[env_uuid] = (
-            _config.ENVIRONMENT_IMAGE_NAME.format(
-                project_uuid=project_uuid, environment_uuid=env_uuid
-            )
-            + f":{image.tag}"
-        )
+        env_uuid_to_image_name[
+            env_uuid
+        ] = f"{_config.ENVIRONMENT_IMAGE_NAME.format(project_uuid=project_uuid, environment_uuid=env_uuid)}:{image.tag}"
 
     db.session.bulk_save_objects(run_image_mappings)
     return env_uuid_to_image_name
@@ -98,8 +96,8 @@ def lock_environment_images_for_interactive_session(
     _lock_environments(project_uuid, environment_uuids)
     env_uuid_to_image = get_env_uuids_to_image_mappings(project_uuid, environment_uuids)
 
-    env_uuid_to_image_name = {}
     run_image_mappings = []
+    env_uuid_to_image_name = {}
     for env_uuid, image in env_uuid_to_image.items():
         run_image_mappings.append(
             models.InteractiveSessionInUseImage(
@@ -109,12 +107,9 @@ def lock_environment_images_for_interactive_session(
                 environment_image_tag=image.tag,
             )
         )
-        env_uuid_to_image_name[env_uuid] = (
-            _config.ENVIRONMENT_IMAGE_NAME.format(
-                project_uuid=project_uuid, environment_uuid=env_uuid
-            )
-            + f":{image.tag}"
-        )
+        env_uuid_to_image_name[
+            env_uuid
+        ] = f"{_config.ENVIRONMENT_IMAGE_NAME.format(project_uuid=project_uuid, environment_uuid=env_uuid)}:{image.tag}"
 
     db.session.bulk_save_objects(run_image_mappings)
     return env_uuid_to_image_name
@@ -126,8 +121,8 @@ def lock_environment_images_for_job(
     _lock_environments(project_uuid, environment_uuids)
     env_uuid_to_image = get_env_uuids_to_image_mappings(project_uuid, environment_uuids)
 
-    env_uuid_to_image_name = {}
     run_image_mappings = []
+    env_uuid_to_image_name = {}
     for env_uuid, image in env_uuid_to_image.items():
         run_image_mappings.append(
             models.JobInUseImage(
@@ -137,12 +132,9 @@ def lock_environment_images_for_job(
                 environment_image_tag=image.tag,
             )
         )
-        env_uuid_to_image_name[env_uuid] = (
-            _config.ENVIRONMENT_IMAGE_NAME.format(
-                project_uuid=project_uuid, environment_uuid=env_uuid
-            )
-            + f":{image.tag}"
-        )
+        env_uuid_to_image_name[
+            env_uuid
+        ] = f"{_config.ENVIRONMENT_IMAGE_NAME.format(project_uuid=project_uuid, environment_uuid=env_uuid)}:{image.tag}"
 
     db.session.bulk_save_objects(run_image_mappings)
     return env_uuid_to_image_name

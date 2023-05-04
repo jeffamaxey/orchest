@@ -73,11 +73,7 @@ class CeleryMock:
 
 class AbortableAsyncResultMock:
     def __init__(self, *args, **kwargs):
-        if args:
-            self.task_id = args[0]
-        else:
-            self.task_id = kwargs["task_id"]
-
+        self.task_id = args[0] if args else kwargs["task_id"]
         self.aborted = False
 
     def abort(self):

@@ -33,8 +33,7 @@ class Runner:
                 file.write("%s\n" % str(uuid.uuid4()))
         except IOError as e:
             raise Exception(
-                "Could not write to log file %s. Error: %s [%s]"
-                % (log_file_path, e, type(e))
+                f"Could not write to log file {log_file_path}. Error: {e} [{type(e)}]"
             )
 
     def clear_pipeline_step_log(self):
@@ -45,15 +44,13 @@ class Runner:
             try:
                 os.remove(log_file_path)
             except Exception as e:
-                raise Exception(
-                    "Failed to remove file in path %s error: %s" % (log_file_path, e)
-                )
+                raise Exception(f"Failed to remove file in path {log_file_path} error: {e}")
 
     def get_log_file_path(self):
         return os.path.join(
             Config.PROJECT_DIR,
             Config.LOGS_PATH.format(pipeline_uuid=self.pipeline_uuid),
-            "%s.log" % self.step_uuid,
+            f"{self.step_uuid}.log",
         )
 
     def create_log_dir(self):

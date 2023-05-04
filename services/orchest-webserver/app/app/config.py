@@ -3,6 +3,8 @@ import os
 from _orchest.internals import config as _config
 
 
+
+
 class Config:
     DEBUG = False
     TESTING = False
@@ -73,7 +75,10 @@ class Config:
     # so that when creating a new job the files are not copied to the
     # snapshot.
     GIT_IGNORE_PROJECT_ROOT = [
-        *[".orchest/" + pattern for pattern in GIT_IGNORE_PROJECT_HIDDEN_ORCHEST],
+        *[
+            f".orchest/{pattern}"
+            for pattern in GIT_IGNORE_PROJECT_HIDDEN_ORCHEST
+        ],
         ".ipynb_checkpoints/",
     ]
 
@@ -175,6 +180,7 @@ class Config:
             },
         },
     }
+
 
 
 class DevelopmentConfig(Config):

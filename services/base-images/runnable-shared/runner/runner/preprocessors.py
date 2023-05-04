@@ -93,7 +93,7 @@ class PartialExecutePreprocessor(ExecutePreprocessor):
             self.log_output_message(out)
 
         except ValueError:
-            self.log.error("unhandled iopub msg: " + msg_type)
+            self.log.error(f"unhandled iopub msg: {msg_type}")
             return None
 
         return super().output(outs, msg, display_id, cell_index)
@@ -132,7 +132,7 @@ class PartialExecutePreprocessor(ExecutePreprocessor):
         except CellExecutionError as e:
 
             logger.error(f"Cell failed to execute with kernel: {self.kernel_name}")
-            self.log_file.write("%s" % e)
+            self.log_file.write(f"{e}")
             self.log_file.flush()
 
             # raise CellExecutionError to avoid execution next cells

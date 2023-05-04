@@ -72,7 +72,7 @@ class OrchestImagesToPrePull(Resource):
 
 
 def _get_update_sidecar_manifest(update_pod_name, token: str) -> dict:
-    manifest = {
+    return {
         "apiVersion": "v1",
         "kind": "Pod",
         "metadata": {
@@ -91,7 +91,9 @@ def _get_update_sidecar_manifest(update_pod_name, token: str) -> dict:
                         {"name": "PYTHONUNBUFFERED", "value": "TRUE"},
                         {
                             "name": "POD_NAME",
-                            "valueFrom": {"fieldRef": {"fieldPath": "metadata.name"}},
+                            "valueFrom": {
+                                "fieldRef": {"fieldPath": "metadata.name"}
+                            },
                         },
                         {"name": "UPDATE_POD_NAME", "value": update_pod_name},
                         {"name": "TOKEN", "value": token},
@@ -107,7 +109,6 @@ def _get_update_sidecar_manifest(update_pod_name, token: str) -> dict:
             "serviceAccountName": "orchest-api",
         },
     }
-    return manifest
 
 
 def _get_orchest_ctl_pod_manifest(command_label: str) -> dict:

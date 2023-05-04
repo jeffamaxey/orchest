@@ -22,8 +22,7 @@ def pipeline():
     with open("tests/input_operations/pipeline.json", "r") as f:
         description = json.load(f)
 
-    pipeline = Pipeline.from_json(description)
-    return pipeline
+    return Pipeline.from_json(description)
 
 
 def test_serialization():

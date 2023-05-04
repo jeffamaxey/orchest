@@ -151,7 +151,7 @@ class Job(Resource):
                 )
                 .group_by(models.NonInteractivePipelineRun.status)
             )
-            status_agg = {k: v for k, v in status_agg}
+            status_agg = dict(status_agg)
             job = job.__dict__
             job["pipeline_run_status_counts"] = status_agg
 
@@ -712,9 +712,9 @@ class RunJob(TwoPhaseFunction):
         # In case the job gets aborted while the scheduler attempts to
         # run it.
         if job.status == "ABORTED":
-            self.collateral_kwargs["job"] = dict()
+            self.collateral_kwargs["job"] = {}
             self.collateral_kwargs["tasks_to_launch"] = []
-            self.collateral_kwargs["run_config"] = dict()
+            self.collateral_kwargs["run_config"] = {}
 
         # The status of jobs that run once is initially set to PENDING,
         # thus we need to update that.
@@ -777,17 +777,16 @@ class RunJob(TwoPhaseFunction):
             # Set an initial value for the status of the pipeline
             # steps that will be run.
             step_uuids = [s.properties["uuid"] for s in pipeline.steps]
-            pipeline_steps = []
-            for step_uuid in step_uuids:
-                pipeline_steps.append(
-                    models.PipelineRunStep(
-                        **{
-                            "run_uuid": task_id,
-                            "step_uuid": step_uuid,
-                            "status": "PENDING",
-                        }
-                    )
+            pipeline_steps = [
+                models.PipelineRunStep(
+                    **{
+                        "run_uuid": task_id,
+                        "step_uuid": step_uuid,
+                        "status": "PENDING",
+                    }
                 )
+                for step_uuid in step_uuids
+            ]
             db.session.bulk_save_objects(pipeline_steps)
 
         job.total_scheduled_executions += 1
@@ -797,15 +796,10 @@ class RunJob(TwoPhaseFunction):
         # Prepare data for _collateral.
         self.collateral_kwargs["job"] = job.as_dict()
 
-        env_uuid_to_image = {}
-        for a in job.images_in_use:
-            env_uuid_to_image[a.environment_uuid] = (
-                _config.ENVIRONMENT_IMAGE_NAME.format(
-                    project_uuid=a.project_uuid, environment_uuid=a.environment_uuid
-                )
-                + f":{a.environment_image_tag}"
-            )
-
+        env_uuid_to_image = {
+            a.environment_uuid: f"{_config.ENVIRONMENT_IMAGE_NAME.format(project_uuid=a.project_uuid, environment_uuid=a.environment_uuid)}:{a.environment_image_tag}"
+            for a in job.images_in_use
+        }
         run_config = job.pipeline_run_spec["run_config"]
         run_config["env_uuid_to_image"] = env_uuid_to_image
         run_config["user_env_variables"] = job.env_variables
@@ -902,10 +896,11 @@ class AbortJob(TwoPhaseFunction):
 
         # Store each uuid of runs that can still be aborted. These uuid
         # are the celery task uuid as well.
-        for run in job.pipeline_runs:
-            if run.status in ["PENDING", "STARTED"]:
-                run_uuids.append(run.uuid)
-
+        run_uuids.extend(
+            run.uuid
+            for run in job.pipeline_runs
+            if run.status in ["PENDING", "STARTED"]
+        )
         # Set the state of each run and related steps to ABORTED. Note
         # that the status of steps that have already been completed will
         # not be modified.
@@ -955,14 +950,11 @@ class CreateJob(TwoPhaseFunction):
         if cron_schedule is None and scheduled_start is None:
             next_scheduled_time = None
 
-        # To be scheduled according to argument, to be run once.
         elif cron_schedule is None:
             # Expected to be UTC.
             next_scheduled_time = datetime.fromisoformat(scheduled_start)
 
-        # To follow a cron schedule. To be run an indefinite amount
-        # of times.
-        elif cron_schedule is not None and scheduled_start is None:
+        elif scheduled_start is None:
             if not croniter.is_valid(cron_schedule):
                 raise ValueError(f"Invalid cron schedule: {cron_schedule}")
 

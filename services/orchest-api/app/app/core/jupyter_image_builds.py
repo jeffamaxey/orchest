@@ -55,15 +55,12 @@ def write_jupyter_dockerfile(work_dir, bash_script, path):
         Dictionary containing build context details.
 
     """
-    statements = []
-    statements.append(f"FROM orchest/jupyter-server:{CONFIG_CLASS.ORCHEST_VERSION}")
-    # Create a layer (apparently helps with buildkit caching base image
-    # layers). Also helps with logs (see _build_image).
-    statements.append("RUN echo orchest")
-    statements.append(f'WORKDIR {os.path.join("/", work_dir)}')
-
-    statements.append("COPY . .")
-
+    statements = [
+        f"FROM orchest/jupyter-server:{CONFIG_CLASS.ORCHEST_VERSION}",
+        "RUN echo orchest",
+        f'WORKDIR {os.path.join("/", work_dir)}',
+        "COPY . .",
+    ]
     # Note: commands are concatenated with && because this way an
     # exit_code != 0 will bubble up and cause the build to fail, as it
     # should. The bash script is removed so that the user won't be able
@@ -111,7 +108,7 @@ def prepare_build_context(task_uuid):
     if os.path.isdir(snapshot_path):
         rmtree(snapshot_path)
 
-    os.system('mkdir "%s"' % (snapshot_path))
+    os.system(f'mkdir "{snapshot_path}"')
 
     dockerfile_name = ".orchest-reserved-jupyter-dockerfile"
     bash_script_name = ".orchest-reserved-jupyter-setup.sh"
@@ -124,15 +121,11 @@ def prepare_build_context(task_uuid):
     if os.path.isfile(jupyterlab_setup_script):
         # move the setup_script to the context
         os.system(
-            'cp "%s" "%s"'
-            % (
-                jupyterlab_setup_script,
-                os.path.join(snapshot_path, bash_script_name),
-            )
+            f'cp "{jupyterlab_setup_script}" "{os.path.join(snapshot_path, bash_script_name)}"'
         )
     else:
         # create empty shell script if no setup_script exists
-        os.system('touch "%s"' % os.path.join(snapshot_path, bash_script_name))
+        os.system(f'touch "{os.path.join(snapshot_path, bash_script_name)}"')
 
     return {
         "snapshot_path": snapshot_path,

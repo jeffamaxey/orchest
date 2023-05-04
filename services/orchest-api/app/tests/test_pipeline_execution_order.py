@@ -12,12 +12,10 @@ from app.core.pipelines import Pipeline
 class IO:
     def __init__(self, pipeline):
         self.pipeline = pipeline
-        self.dependencies = dict()
-
-        for step in pipeline.steps:
-            self.dependencies[step.properties["uuid"]] = set(
-                step.properties["incoming_connections"]
-            )
+        self.dependencies = {
+            step.properties["uuid"]: set(step.properties["incoming_connections"])
+            for step in pipeline.steps
+        }
 
 
 def execution_order_correct(execution_order, dependencies):

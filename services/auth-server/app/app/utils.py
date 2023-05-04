@@ -17,7 +17,7 @@ def get_hash(path):
 def set_auth_cache(
     project_uuid_prefix, session_uuid_prefix, requires_authentication, auth_cache
 ):
-    auth_cache["%s-%s" % (project_uuid_prefix, session_uuid_prefix)] = {
+    auth_cache[f"{project_uuid_prefix}-{session_uuid_prefix}"] = {
         "date": datetime.datetime.now(),
         "requires_authentication": requires_authentication,
     }
@@ -26,7 +26,7 @@ def set_auth_cache(
 def get_auth_cache(
     project_uuid_prefix, session_uuid_prefix, auth_cache, auth_cache_age
 ):
-    key = "%s-%s" % (project_uuid_prefix, session_uuid_prefix)
+    key = f"{project_uuid_prefix}-{session_uuid_prefix}"
 
     if key not in auth_cache:
         return {"status": "missing"}

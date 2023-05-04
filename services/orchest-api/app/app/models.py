@@ -40,12 +40,12 @@ class BaseModel(db.Model):
 
         Can be used to sanitize a status update.
         """
-        ans = {}
         columns = [c.name for c in cls.__table__.columns]
-        for key, value in data.items():
-            if key in columns:
-                ans[key] = copy.deepcopy(value)
-        return ans
+        return {
+            key: copy.deepcopy(value)
+            for key, value in data.items()
+            if key in columns
+        }
 
 
 class Project(BaseModel):
@@ -592,7 +592,7 @@ class PipelineRunStep(BaseModel):
 def _create_text_search_vector(*args):
     exp = args[0]
     for e in args[1:]:
-        exp += " " + e
+        exp += f" {e}"
     return func.to_tsvector("simple", exp)
 
 

@@ -95,10 +95,7 @@ class InvalidMetaDataError(Error):
 
     def __init__(self, msg="", *args, **kwargs):
         # Avoid having a prefixing space if the msg is empty.
-        if msg:
-            msg = " ".join([msg, self.helper_message])
-        else:
-            msg = self.helper_message
+        msg = " ".join([msg, self.helper_message]) if msg else self.helper_message
         super().__init__(msg, *args, **kwargs)
 
 

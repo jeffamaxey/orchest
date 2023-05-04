@@ -344,8 +344,7 @@ class MovePipeline(TwoPhaseFunction):
                 )
                 step["file_path"] = file_path
             with open(old_path, "w") as json_file:
-                errors = check_pipeline_correctness(pipeline_def)
-                if errors:
+                if errors := check_pipeline_correctness(pipeline_def):
                     raise Exception("Incorrect pipeline.")
                 json.dump(pipeline_def, json_file, indent=4, sort_keys=True)
 
